@@ -65,7 +65,7 @@
     string? _busy;
 
     string Query => _query.Trim();
-    List<string> InDocument => Ed.All().OfType<TextNode>().Select(t => t.FontFamily).Distinct().OrderBy(f => f).ToList();
+    List<string> InDocument => Editor.Fonts(Ed.All()).OrderBy(f => f).ToList();
     List<string> Recent => Shell.Settings.RecentFonts.Except(InDocument).Take(6).ToList();
 
     IEnumerable<string> Matches => FontCatalog.AllCurated.Concat(FontCatalog.More).Concat(Shell.Settings.RecentFonts).Distinct()

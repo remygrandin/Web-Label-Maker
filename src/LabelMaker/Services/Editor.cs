@@ -146,6 +146,7 @@ public sealed partial class Editor
             ShapeNode s => s.Kind == ShapeKind.Rect ? "Rectangle" : s.Kind.ToString(),
             ImageNode => "Image",
             BarcodeNode b => $"{CodeNames.Of(b.Format)} · {b.Value}",
+            TableNode tb => $"Table {tb.Rows}×{tb.Cols}",
             GroupNode => "Group",
             _ => "Object",
         };
@@ -169,9 +170,13 @@ public sealed partial class Editor
 
     public async Task EnsureFonts(LabelDocument doc)
     {
-        var families = Geo.Walk(doc.Nodes).OfType<TextNode>().Select(t => t.FontFamily).Distinct().ToList();
+        var families = Fonts(Geo.Walk(doc.Nodes)).ToList();
         await Task.WhenAll(families.Select(f => LoadFont(f).AsTask()));
     }
+
+    /// <summary>Font families the given objects use.</summary>
+    public static IEnumerable<string> Fonts(IEnumerable<Node> nodes) =>
+        nodes.Select(n => n switch { TextNode t => t.FontFamily, TableNode tb => tb.FontFamily, _ => null }).OfType<string>().Distinct();
 
     public ValueTask<bool> LoadFont(string family) => _js.InvokeAsync<bool>("LM.loadFont", family);
 

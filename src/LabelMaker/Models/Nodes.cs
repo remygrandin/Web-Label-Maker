@@ -37,7 +37,11 @@ public enum CodeFormat { QrCode, DataMatrix, Aztec, Pdf417, Code128, Code39, Cod
 [JsonConverter(typeof(JsonStringEnumConverter<EccLevel>))]
 public enum EccLevel { L, M, Q, H }
 
+[JsonConverter(typeof(JsonStringEnumConverter<TableHeader>))]
+public enum TableHeader { None, Bold, Invert }
+
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TableNode), "table")]
 [JsonDerivedType(typeof(TextNode), "text")]
 [JsonDerivedType(typeof(ShapeNode), "shape")]
 [JsonDerivedType(typeof(ImageNode), "image")]
@@ -123,6 +127,34 @@ public sealed class BarcodeNode : Node
 
     [JsonIgnore]
     public bool Is2D => Format is CodeFormat.QrCode or CodeFormat.DataMatrix or CodeFormat.Aztec or CodeFormat.Pdf417;
+}
+
+/// <summary>A small grid of single-line text cells sharing one font.</summary>
+public sealed class TableNode : Node
+{
+    public const int MaxRows = 8, MaxCols = 10;
+
+    public int Rows { get; set; } = 2;
+    public int Cols { get; set; } = 2;
+    /// <summary>Cell texts, row by row.</summary>
+    public List<string> Cells { get; set; } = new();
+    public string FontFamily { get; set; } = "Roboto Condensed";
+    /// <summary>Font size in points, used when <see cref="AutoSize"/> is off (text still shrinks to stay inside its cell).</summary>
+    public double FontSize { get; set; } = 6;
+    /// <summary>One size for the whole table: the largest at which every cell fits.</summary>
+    public bool AutoSize { get; set; } = true;
+    public bool Bold { get; set; }
+    public bool Italic { get; set; }
+    public HAlign Align { get; set; } = HAlign.Center;
+    public TableHeader Header { get; set; } = TableHeader.None;
+    /// <summary>Columns share the width in proportion to their content rather than equally.</summary>
+    public bool FitColumns { get; set; } = true;
+    /// <summary>Outer and inner line widths in mm; 0 hides them.</summary>
+    public double Border { get; set; } = 0.3;
+    public double Grid { get; set; } = 0.2;
+    public double Padding { get; set; } = 0.4;
+
+    public string Cell(int index) => index >= 0 && index < Cells.Count ? Cells[index] ?? "" : "";
 }
 
 public sealed class GroupNode : Node

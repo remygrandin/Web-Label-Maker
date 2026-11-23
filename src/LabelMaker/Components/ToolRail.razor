@@ -20,6 +20,28 @@
         }
     </div>
 
+    <div style="position:relative">
+        <button class="tool @(Ed.Tool?.StartsWith("table") == true ? "on" : "")" data-tip="Table" @onclick="() => { _rows = _cols = 2; Toggle(5); }"><Icon Name="table" /></button>
+        @if (_fly == 5)
+        {
+            <div class="menu-scrim" @onclick="() => _fly = 0"></div>
+            <div class="menu" style="left:44px;top:0;min-width:0">
+                <div class="menu-head">Table · @_rows × @_cols</div>
+                <div class="table-pick">
+                    @for (int r = 1; r <= 4; r++)
+                    {
+                        @for (int c = 1; c <= 6; c++)
+                        {
+                            int rows = r, cols = c;
+                            <button class="@(rows <= _rows && cols <= _cols ? "on" : "")" title="@rows rows × @cols columns"
+                                    @onmouseover="() => { _rows = rows; _cols = cols; }" @onclick="@(() => Arm($"table:{rows}:{cols}"))"></button>
+                        }
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
     <button class="tool @On("image")" data-tip="Image: pick a file, then drag to place (or drop / paste one)" @onclick="PickImage"><Icon Name="image" /></button>
     <div class="rule"></div>
 
@@ -68,7 +90,7 @@
 </nav>
 
 @code {
-    int _fly;
+    int _fly, _rows = 2, _cols = 2;
     string _shapeIcon = "shapes";
 
     static readonly CodeFormat[] TwoD = [CodeFormat.QrCode, CodeFormat.DataMatrix, CodeFormat.Aztec, CodeFormat.Pdf417];

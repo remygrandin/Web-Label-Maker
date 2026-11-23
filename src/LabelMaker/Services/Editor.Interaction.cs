@@ -270,7 +270,7 @@ public sealed partial class Editor
             }
             case Drag.Pan:
                 PanX = _pan0X + sx - _sx; PanY = _pan0Y + sy - _sy;
-                if (EditingId is not null) Refresh(); else Render();
+                if (EditingId is not null || CellTableId is not null) Refresh(); else Render();
                 return "grabbing";
             case Drag.Cut:
             {
@@ -368,6 +368,7 @@ public sealed partial class Editor
             Refresh();
             BeginEdit((TextNode)target);
         }
+        else if (target is TableNode table) BeginCellEdit(table, CellAt(table, wx, wy));
     }
 
     public void Wheel(double sx, double sy, double dx, double dy, int mods)
@@ -375,7 +376,7 @@ public sealed partial class Editor
         if ((mods & 2) != 0) { ZoomAt(sx, sy, Math.Exp(-dy * 0.0022)); return; }
         if ((mods & 1) != 0 && dx == 0) (dx, dy) = (dy, 0);
         PanX -= dx; PanY -= dy;
-        if (EditingId is not null) Refresh(); else Render();
+        if (EditingId is not null || CellTableId is not null) Refresh(); else Render();
     }
 
     string CursorFor(Handle h)
@@ -543,6 +544,7 @@ public sealed partial class Editor
             case "ArrowUp": Nudge(0, -step); return true;
             case "ArrowDown": Nudge(0, step); return true;
             case "Enter" when Single is TextNode editable: BeginEdit(editable); return true;
+            case "Enter" when Single is TableNode table: BeginCellEdit(table, 0); return true;
             case "Escape" when Tool is not null: SetTool(null); return true;
             case "Escape":
                 if (Find(ScopeId) is { } scope) { ScopeId = Locate(scope).Parent?.Id; Select(scope); }

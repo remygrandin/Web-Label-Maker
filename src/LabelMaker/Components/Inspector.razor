@@ -77,6 +77,7 @@
             case ShapeNode s: <ShapeInspector Node="s" /> break;
             case ImageNode i: <ImageInspector Node="i" /> break;
             case BarcodeNode c: <BarcodeInspector Node="c" /> break;
+            case TableNode tb: <TableInspector Node="tb" /> break;
         }
     }
 </aside>
@@ -87,6 +88,7 @@
         TextNode => "Text",
         ShapeNode s => s.Kind == ShapeKind.Rect ? "Rectangle" : s.Kind.ToString(),
         ImageNode => "Image",
+        TableNode => "Table",
         BarcodeNode b => CodeNames.Of(b.Format),
         GroupNode => "Group",
         _ => "Object",

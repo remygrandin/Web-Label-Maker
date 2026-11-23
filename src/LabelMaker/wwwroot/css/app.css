@@ -430,6 +430,13 @@ input, textarea { user-select: text; }
     position: absolute; margin: 0; border: 0; outline: 1px solid var(--accent); resize: none; overflow: hidden;
     box-sizing: border-box; transform-origin: center; caret-color: var(--accent); border-radius: 0;
 }
+.inline-text.cell { padding: 0; height: auto; font-kerning: normal; }
+.table-pick { display: grid; grid-template-columns: repeat(6, 18px); gap: 3px; padding: 4px 8px 8px; }
+.table-pick button { height: 14px; padding: 0; background: var(--field); border: 1px solid var(--line-strong); border-radius: 0; cursor: pointer; }
+.table-pick button.on { background: var(--accent-soft); border-color: var(--accent); }
+.cells { display: grid; gap: 3px; margin-top: 6px; }
+.cells .inp { padding: 0 4px; font-size: 11.5px; }
+.cells .inp.on { border-color: var(--accent); background: var(--accent-soft); }
 .inline-text::selection { background: var(--accent); color: #fff; }
 .tool-hint {
     position: absolute; left: 50%; top: 30px; transform: translateX(-50%); pointer-events: none; white-space: nowrap;

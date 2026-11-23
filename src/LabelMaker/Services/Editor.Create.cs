@@ -7,7 +7,7 @@ public sealed partial class Editor
 {
     /// <summary>
     /// The armed creation tool, or null for the selection tool. One of "text",
-    /// "shape:Kind[:preset]", "code:Format", "image", "cut:Half", "cut:Full".
+    /// "shape:Kind[:preset]", "code:Format", "table:rows:cols", "image", "cut:Half", "cut:Full".
     /// </summary>
     public string? Tool { get; private set; }
 
@@ -86,6 +86,8 @@ public sealed partial class Editor
                 else if (format == CodeFormat.Pdf417) b.W = ch * 2.4;
                 return b;
             }
+            case "table": // "table:rows:cols"
+                return MakeTable(parts.Length > 1 && int.TryParse(parts[1], out var tr) ? tr : 2, parts.Length > 2 && int.TryParse(parts[2], out var tc) ? tc : 2);
             case "image" when _pendingImage is { } img:
             {
                 double ih = Math.Max(3, UsableHeight);
@@ -149,6 +151,7 @@ public sealed partial class Editor
             Select(node);
         });
         if (node is TextNode text) BeginEdit(text, selectAll: true);
+        else if (node is TableNode table) BeginCellEdit(table, 0);
     }
 
     /// <summary>Insert an object without the tool flow (paste, drop): beside existing content, or centred when full.</summary>

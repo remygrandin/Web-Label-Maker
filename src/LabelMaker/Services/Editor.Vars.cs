@@ -92,6 +92,12 @@ public sealed partial class Editor
                 c.Value = ResolveText(b.Value);
                 return c;
             }
+            case TableNode tb when tb.Cells.Any(s => s.Contains('{')):
+            {
+                var c = (TableNode)tb.Shallow();
+                c.Cells = tb.Cells.Select(ResolveText).ToList();
+                return c;
+            }
             default: return n;
         }
     }
@@ -99,7 +105,8 @@ public sealed partial class Editor
     public string? BarcodeError(BarcodeNode n) => Barcodes.Error((BarcodeNode)Resolved(n));
 
     public bool UsesSeq => All().Any(n => n is TextNode t && t.Text.Contains("seq", StringComparison.OrdinalIgnoreCase)
-        || n is BarcodeNode b && b.Value.Contains("seq", StringComparison.OrdinalIgnoreCase));
+        || n is BarcodeNode b && b.Value.Contains("seq", StringComparison.OrdinalIgnoreCase)
+        || n is TableNode tb && tb.Cells.Any(s => s.Contains("seq", StringComparison.OrdinalIgnoreCase)));
 
     // ---- bound numeric properties -----------------------------------------------------------
 

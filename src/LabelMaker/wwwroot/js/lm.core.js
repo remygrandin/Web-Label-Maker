@@ -13,6 +13,11 @@
     };
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => LM.rerender && LM.rerender());
 
+    // Tab and Enter move between table cells instead of leaving the field
+    document.addEventListener('keydown', (e) => {
+        if (e.target?.id === 'cell-text' && (e.key === 'Tab' || e.key === 'Enter')) e.preventDefault();
+    }, true);
+
     LM.focus = (selector, select) => {
         const el = document.querySelector(selector);
         if (!el) return;

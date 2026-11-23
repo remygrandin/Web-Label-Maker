@@ -10,6 +10,13 @@
                   @oninput="e => Ed.Mutate(() => t.Text = e.Value?.ToString() ?? string.Empty, Key(t))"
                   @onblur="Ed.EndEdit" @onkeydown="OnEditKey"></textarea>
     }
+    @if (Ed.EditingTable is { } table)
+    {
+        int index = Ed.CellIndex;
+        <input id="cell-text" class="inline-text cell" spellcheck="false" autocomplete="off" style="@CellStyle(table, index)" value="@table.Cell(index)"
+               @oninput="e => Ed.SetCell(table, index, e.Value?.ToString() ?? string.Empty)"
+               @onblur="Ed.EndCellEdit" @onkeydown="OnCellKey" />
+    }
     @if (Ed.Tool is not null)
     {
         <div class="tool-hint">@Hint</div>
@@ -19,7 +26,7 @@
 @code {
     ElementReference _canvas;
     DotNetObjectReference<CanvasView>? _ref;
-    string? _focused;
+    string? _focused, _cell;
 
     static string Key(TextNode t) => "text:" + t.Id;
 
@@ -46,6 +53,40 @@
             _focused = Ed.EditingId;
             if (_focused is not null) await JS.InvokeVoidAsync("LM.focus", "#inline-text", Ed.EditSelectAll);
         }
+        string? cell = Ed.CellTableId is null ? null : Ed.CellTableId + ":" + Ed.CellIndex;
+        if (cell != _cell)
+        {
+            _cell = cell;
+            if (cell is not null) await JS.InvokeVoidAsync("LM.focus", "#cell-text", true);
+        }
+    }
+
+    void OnCellKey(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape": Ed.EndCellEdit(); break;
+            case "Tab": Ed.MoveCell(e.ShiftKey ? -1 : 1); break;
+            case "Enter": Ed.MoveCell(Ed.EditingTable?.Cols ?? 1); break;
+        }
+    }
+
+    // An input laid over one cell, turning with the table about the table's centre.
+    string CellStyle(TableNode t, int index)
+    {
+        var c = Ed.CellRect(t, index);
+        double z = Ed.Zoom, line = Math.Max(t.Grid, t.Border), inset = line / 2;
+        bool bold = t.Bold || (index < t.Cols && t.Header != TableHeader.None);
+        FormattableString css = $"""
+            left:{Ed.PanX + (t.X + c.X + inset) * z:0.##}px;top:{Ed.PanY + (t.Y + c.Y + inset) * z:0.##}px;
+            width:{Math.Max(4, (c.W - line) * z):0.##}px;height:{Math.Max(4, (c.H - line) * z):0.##}px;
+            padding:0 {t.Padding * z:0.##}px;
+            font-family:'{t.FontFamily}','IBM Plex Sans',sans-serif;font-size:{Math.Max(1, c.Font * z):0.###}px;
+            font-weight:{(bold ? 700 : 400)};font-style:{(t.Italic ? "italic" : "normal")};
+            text-align:{t.Align.ToString().ToLowerInvariant()};color:#000;background:#fff;
+            transform-origin:{(t.W / 2 - c.X - inset) * z:0.##}px {(t.H / 2 - c.Y - inset) * z:0.##}px;transform:rotate({t.Rotation:0.##}deg);
+            """;
+        return FormattableString.Invariant(css).ReplaceLineEndings("");
     }
 
     void OnEditKey(KeyboardEventArgs e)

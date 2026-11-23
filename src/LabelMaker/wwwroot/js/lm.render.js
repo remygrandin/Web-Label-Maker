@@ -324,6 +324,85 @@
         }
     }
 
+    // ---- tables ------------------------------------------------------------------
+    // Column widths (mm), row height and a text scale per cell (mm per REF px).
+    function tableLayout(n) {
+        const rows = Math.max(1, n.rows | 0), cols = Math.max(1, n.cols | 0);
+        const pad = n.padding || 0, line = Math.max(n.grid || 0, n.border || 0);
+        const ex = 2 * pad + line, ey = pad + line;   // room lost to padding and lines in a cell
+        const cells = [];
+        for (let i = 0; i < rows * cols; i++) {
+            const t = {
+                text: String(n.cells?.[i] ?? '').replace(/\n/g, ' '), fontFamily: n.fontFamily, italic: n.italic,
+                bold: n.bold || (i < cols && n.header !== 'None'), fontSize: n.fontSize, lineHeight: 1, mode: 'Auto',
+            };
+            cells.push({ t, L: layoutText(t) });
+        }
+        let colW = new Array(cols).fill(n.w / cols);
+        if (n.fitColumns) {
+            // every column gets the same text scale: width = scale × widest text + padding
+            const nat = colW.map((_, c) => Math.max(REF * 0.6, ...cells.filter((_, i) => i % cols === c).map(q => q.L.w)));
+            const scale = (n.w - cols * ex) / nat.reduce((a, b) => a + b, 0);
+            if (scale > 0) colW = nat.map(v => v * scale + ex);
+        }
+        const rowH = n.h / rows;
+        const fits = cells.map((q, i) => Math.max(0.001, Math.min(
+            q.L.w ? (colW[i % cols] - ex) / q.L.w : Infinity, (rowH - ey) / q.L.h)));
+        const fixed = Math.max(0.1, n.fontSize * MM_PER_PT) / REF;
+        const used = fits.filter((_, i) => cells[i].L.w);
+        const common = Math.min(...(used.length ? used : fits));
+        const k = fits.map(f => n.autoSize ? Math.min(common, f) : Math.min(fixed, f));
+        return { rows, cols, colW, rowH, cells, k, ex };
+    }
+
+    // For the cell editor and hit-testing: column widths in mm, font size per cell in mm.
+    LM.tableLayout = (n) => { const T = tableLayout(n); return { colW: T.colW, font: T.k.map(k => k * REF) }; };
+
+    function drawTable(ctx, n) {
+        const T = tableLayout(n), x0 = -n.w / 2, y0 = -n.h / 2;
+        const inv = n.header === 'Invert';
+        if (inv) { ctx.fillStyle = '#000'; ctx.fillRect(x0, y0, n.w, T.rowH); }
+        ctx.textBaseline = 'alphabetic';
+        for (let r = 0; r < T.rows; r++) {
+            let x = x0;
+            for (let c = 0; c < T.cols; c++) {
+                const i = r * T.cols + c, q = T.cells[i], cw = T.colW[c];
+                if (q.L.w) {
+                    const k = T.k[i], tw = q.L.w * k, th = q.L.h * k;
+                    const tx = n.align === 'Left' ? x + T.ex / 2 : n.align === 'Right' ? x + cw - T.ex / 2 - tw : x + (cw - tw) / 2;
+                    ctx.save();
+                    ctx.translate(tx, y0 + r * T.rowH + (T.rowH - th) / 2);
+                    ctx.scale(k, k);
+                    ctx.font = fontOf(q.t, REF);
+                    ctx.letterSpacing = '0px';
+                    ctx.fillStyle = inv && r === 0 ? '#fff' : '#000';
+                    ctx.fillText(q.L.lines[0].t, 0, (q.L.lh - (q.L.asc + q.L.desc)) / 2 + q.L.asc);
+                    ctx.restore();
+                }
+                x += cw;
+            }
+        }
+        ctx.setLineDash([]); ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
+        if (n.grid > 0) {
+            const vertical = (from, to, color) => {
+                ctx.beginPath();
+                for (let c = 1, x = x0; c < T.cols; c++) { x += T.colW[c - 1]; ctx.moveTo(x, from); ctx.lineTo(x, to); }
+                ctx.strokeStyle = color; ctx.stroke();
+            };
+            ctx.lineWidth = n.grid;
+            vertical(y0, y0 + n.h, '#000');
+            if (inv) vertical(y0, y0 + T.rowH, '#fff');
+            ctx.beginPath();
+            for (let r = 1; r < T.rows; r++) { ctx.moveTo(x0, y0 + r * T.rowH); ctx.lineTo(x0 + n.w, y0 + r * T.rowH); }
+            ctx.strokeStyle = '#000'; ctx.stroke();
+        }
+        if (n.border > 0) {
+            const b = Math.min(n.border, n.w / 2, n.h / 2);
+            ctx.lineWidth = b; ctx.strokeStyle = '#000';
+            ctx.strokeRect(x0 + b / 2, y0 + b / 2, n.w - b, n.h - b);
+        }
+    }
+
     // ---- items -------------------------------------------------------------------
     function drawItems(ctx, frame, s, print) {
         for (const n of frame.items) {
@@ -334,6 +413,7 @@
             switch (n.type) {
                 case 'text': drawText(ctx, n); break;
                 case 'shape': drawShape(ctx, n); break;
+                case 'table': drawTable(ctx, n); break;
                 case 'image': drawImage(ctx, n, s, print, frame.dpi); break;
                 case 'barcode': drawBarcode(ctx, n, s, print, frame.dpi); break;
             }

@@ -1,0 +1,83 @@
+@inject Editor Ed
+
+<div class="sect">
+    <div class="sect-title">Table</div>
+    <div class="grid2">
+        <NumberField Label="ROWS" Value="Node.Rows" Min="1" Max="TableNode.MaxRows" Step="1" Decimals="0" ValueChanged="v => Ed.ResizeTable(Node, (int)v, Node.Cols)" />
+        <NumberField Label="COLS" Value="Node.Cols" Min="1" Max="TableNode.MaxCols" Step="1" Decimals="0" ValueChanged="v => Ed.ResizeTable(Node, Node.Rows, (int)v)" />
+    </div>
+    <div class="cells" style="grid-template-columns:repeat(@Node.Cols, minmax(0, 1fr))">
+        @for (int i = 0; i < Node.Rows * Node.Cols; i++)
+        {
+            int index = i;
+            <input class="inp @(Ed.CellTableId == Node.Id && Ed.CellIndex == index ? "on" : "")" spellcheck="false" value="@Node.Cell(index)"
+                   title="Row @(index / Node.Cols + 1), column @(index % Node.Cols + 1)"
+                   @oninput="e => Ed.SetCell(Node, index, e.Value?.ToString() ?? string.Empty)" />
+        }
+    </div>
+    <div class="hint">
+        Double-click a cell on the label to type in it; Tab and Enter move on. Cells accept <b>{name}</b> and <b>{seq}</b> like any text.
+    </div>
+</div>
+
+<div class="sect">
+    <div class="sect-title">Text</div>
+    <div class="row">
+        <div class="fill"><FontPicker Value="@Node.FontFamily" ValueChanged="f => Ed.Mutate(() => Node.FontFamily = f)" /></div>
+    </div>
+    <div class="row">
+        <span class="lbl">Size</span>
+        <div class="seg fill">
+            <button class="@(Node.AutoSize ? "on" : "")" title="One size for the whole table: the largest at which every cell fits" @onclick="() => Ed.Mutate(() => Node.AutoSize = true)">Auto</button>
+            <button class="@(Node.AutoSize ? "" : "on")" title="The size you set; a cell that is too full shrinks its own text" @onclick="() => Ed.Mutate(() => Node.AutoSize = false)">Fixed</button>
+        </div>
+    </div>
+    <div class="row">
+        <div class="fill">
+            <BoundField Node="Node" Prop="FontSize" Unit="pt" Min="2" Max="200" Step="0.5" Decimals="1" Disabled="Node.AutoSize" Title="Font size" />
+        </div>
+        <div class="seg">
+            <button class="@(Node.Bold ? "on" : "")" title="Bold" @onclick="() => Ed.Mutate(() => Node.Bold = !Node.Bold)"><Icon Name="bold" /></button>
+            <button class="@(Node.Italic ? "on" : "")" title="Italic" @onclick="() => Ed.Mutate(() => Node.Italic = !Node.Italic)"><Icon Name="italic" /></button>
+        </div>
+        <div class="seg">
+            <button class="@(Node.Align == HAlign.Left ? "on" : "")" title="Align left" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Left)"><Icon Name="text-left" /></button>
+            <button class="@(Node.Align == HAlign.Center ? "on" : "")" title="Centre" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Center)"><Icon Name="text-center" /></button>
+            <button class="@(Node.Align == HAlign.Right ? "on" : "")" title="Align right" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Right)"><Icon Name="text-right" /></button>
+        </div>
+    </div>
+    <div class="row">
+        <span class="lbl">First row</span>
+        <div class="seg fill">
+            <button class="@On(TableHeader.None)" title="The first row looks like the others" @onclick="() => SetHeader(TableHeader.None)">Plain</button>
+            <button class="@On(TableHeader.Bold)" title="Bold header row" @onclick="() => SetHeader(TableHeader.Bold)">Bold</button>
+            <button class="@On(TableHeader.Invert)" title="Header row in white on black" @onclick="() => SetHeader(TableHeader.Invert)">Inverted</button>
+        </div>
+    </div>
+</div>
+
+<div class="sect">
+    <div class="sect-title">Grid</div>
+    <div class="row">
+        <span class="lbl">Columns</span>
+        <div class="seg fill">
+            <button class="@(Node.FitColumns ? "on" : "")" title="Wider columns for longer content" @onclick="() => Ed.Mutate(() => Node.FitColumns = true)">Fit content</button>
+            <button class="@(Node.FitColumns ? "" : "on")" title="All columns the same width" @onclick="() => Ed.Mutate(() => Node.FitColumns = false)">Equal</button>
+        </div>
+    </div>
+    <div class="grid2" style="margin-top:6px">
+        <BoundField Node="Node" Prop="Border" Label="OUT" Unit="mm" Min="0" Max="3" Step="0.1" Title="Outer border thickness (0 for none)" />
+        <BoundField Node="Node" Prop="Grid" Label="IN" Unit="mm" Min="0" Max="3" Step="0.1" Title="Thickness of the lines between cells (0 for none)" />
+    </div>
+    <div class="grid2">
+        <BoundField Node="Node" Prop="Padding" Label="PAD" Unit="mm" Min="0" Max="5" Step="0.1" Title="Space between the text and the cell edges" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TableNode Node { get; set; } = default!;
+
+    string On(TableHeader h) => Node.Header == h ? "on" : "";
+
+    void SetHeader(TableHeader h) => Ed.Mutate(() => Node.Header = h);
+}
