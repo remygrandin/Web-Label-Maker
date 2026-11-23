@@ -77,7 +77,6 @@
 
     void SetMode(TextMode mode) => Ed.Mutate(() =>
     {
-        // leaving Fill: adopt the size the text was being drawn at, so nothing jumps
         Node.Mode = mode;
     });
 }

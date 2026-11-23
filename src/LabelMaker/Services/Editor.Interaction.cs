@@ -269,7 +269,6 @@ public sealed partial class Editor
                 MoveLineEnd(wx, wy, shift);
                 break;
         }
-        MarkChangedIfDragging();
         Render();
         Changed?.Invoke();
         return _drag switch { Drag.Move => "move", Drag.Rotate => "grabbing", _ => "crosshair" };
@@ -277,8 +276,6 @@ public sealed partial class Editor
 
     /// <summary>Raised on every hover move so the status bar can track the cursor.</summary>
     public event Action? CursorMoved;
-
-    void MarkChangedIfDragging() { /* undo is pushed lazily inside the transform appliers */ }
 
     public void PointerUp(double sx, double sy, int mods)
     {
