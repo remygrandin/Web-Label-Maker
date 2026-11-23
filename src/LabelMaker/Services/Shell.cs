@@ -15,7 +15,7 @@ public sealed class AppSettings
     public bool ShowMargins { get; set; } = true;
     /// <summary>"auto", "selection", "label" or "margins".</summary>
     public string AlignTo { get; set; } = "auto";
-    public string PrinterModel { get; set; } = "pt-p710bt";
+    public string PrinterModel { get; set; } = "pt-e560bt";
     public List<string> RecentFonts { get; set; } = new();
 }
 

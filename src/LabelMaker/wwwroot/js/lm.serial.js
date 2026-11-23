@@ -64,7 +64,7 @@
             if (!alive) throw new Error('The printer is not connected.');
             const writer = port.writable.getWriter();
             try {
-                for (let i = 0; i < bytes.length; i += 1024) await writer.write(bytes.subarray(i, i + 1024));
+                for (let i = 0; i < bytes.length; i += 512) await writer.write(bytes.subarray(i, i + 512));
             } finally { writer.releaseLock(); }
         },
 

@@ -101,7 +101,7 @@ public sealed class PrinterService
                 if (raw is { Length: 32 })
                 {
                     Status = new PrinterStatus { Raw = raw };
-                    Say($"Printer reports {Status.MediaWidth} tape (model code 0x{Status.Model:X2})" +
+                    Say($"Printer reports {Status.MediaWidth} tape ({Status.ModelName})" +
                         (Status.Errors.Count > 0 ? $" — {string.Join(", ", Status.Errors)}" : "."));
                     Changed?.Invoke();
                     return Status;

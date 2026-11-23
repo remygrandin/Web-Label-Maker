@@ -32,6 +32,7 @@ so it needs Chrome, Edge or Opera on desktop.
 
 | Model | Status |
 |---|---|
+| PT-E560BT / PT-E510 | Implemented from Brother's PT-E310BT/E510/E560BT raster reference; matches a driver reported working on the E560BT |
 | PT-P710BT | Implemented from Brother's raster command reference; cross-checked with open-source drivers |
 | PT-P300BT | Implemented from community reverse-engineering (Brother publishes no reference) |
 | PT-P910BT | Implemented from Brother's PT-P900 reference; vertical alignment may need the offset setting |
