@@ -9,5 +9,6 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped<Shell>();
 builder.Services.AddScoped<Editor>();
+builder.Services.AddScoped<Library>();
 
 await builder.Build().RunAsync();

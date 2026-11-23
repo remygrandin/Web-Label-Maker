@@ -1,0 +1,154 @@
+@implements IDisposable
+@inject Library Lib
+@inject Editor Ed
+@inject Shell Shell
+
+<div class="scrim" @onclick="Shell.Close">
+    <div class="dialog" @onclick:stopPropagation="true">
+        <div class="dhead">
+            <div class="tabs">
+                <button class="tab @(_templates ? "" : "on")" @onclick="() => _templates = false">My labels</button>
+                <button class="tab @(_templates ? "on" : "")" @onclick="() => _templates = true">Templates</button>
+            </div>
+            <span class="grow"></span>
+            <button class="btn sm" title="Import a label, a template or a full archive (.json)" @onclick="Lib.Import"><Icon Name="upload" />Import…</button>
+            <button class="btn sm" title="Download every saved label and template as one file" @onclick="Lib.ExportArchive"><Icon Name="download" />Export all</button>
+            <button class="ibtn" title="Close" @onclick="Shell.Close"><Icon Name="x" /></button>
+        </div>
+        <div class="dbody">
+            @if (!_templates)
+            {
+                @if (_docs.Count == 0)
+                {
+                    <div class="empty">
+                        No saved labels yet. Your current label is autosaved in this browser; use File → Save (Ctrl+S) to keep a named copy here.
+                    </div>
+                }
+                <div class="cards">
+                    @foreach (var e in _docs)
+                    {
+                        var entry = e;
+                        <div class="card">
+                            <button class="card-thumb" title="Open" @onclick="() => OpenDoc(entry.Id)">
+                                @if (entry.Thumb is not null) { <img src="@entry.Thumb" alt="" /> }
+                            </button>
+                            <div class="card-meta">
+                                <div class="t">
+                                    <div class="n">@entry.Name @(entry.Id == Ed.Doc.Id ? "· open" : "")</div>
+                                    <div class="s">@Size(entry) · @When(entry.Modified)</div>
+                                </div>
+                                <button class="ibtn sm" title="Export as .json" @onclick="() => Lib.ExportEntry(Library.Docs, entry.Id)"><Icon Name="download" /></button>
+                                <button class="ibtn sm" title="Delete from library" @onclick="() => Lib.Delete(Library.Docs, entry.Id)"><Icon Name="trash" /></button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="cards">
+                    @foreach (var t in _userTemplates)
+                    {
+                        var entry = t;
+                        <div class="card">
+                            <button class="card-thumb" title="New label from this template" @onclick="() => UseUser(entry.Id)">
+                                @if (entry.Thumb is not null) { <img src="@entry.Thumb" alt="" /> }
+                            </button>
+                            <div class="card-meta">
+                                <div class="t">
+                                    <div class="n">@entry.Name</div>
+                                    <div class="s">@Size(entry) · yours</div>
+                                </div>
+                                <button class="ibtn sm" title="Export as .json" @onclick="() => Lib.ExportEntry(Library.Templates, entry.Id)"><Icon Name="download" /></button>
+                                <button class="ibtn sm" title="Delete template" @onclick="() => Lib.Delete(Library.Templates, entry.Id)"><Icon Name="trash" /></button>
+                            </div>
+                        </div>
+                    }
+                    @foreach (var b in BuiltIn)
+                    {
+                        var doc = b;
+                        <div class="card">
+                            <button class="card-thumb" title="New label from this template" @onclick="() => Use(doc)">
+                                @if (Thumbs.TryGetValue(doc.Id, out var src)) { <img src="@src" alt="" /> }
+                            </button>
+                            <div class="card-meta">
+                                <div class="t">
+                                    <div class="n">@doc.Name</div>
+                                    <div class="s">@F(doc.HeightMm) × @F(doc.WidthMm) mm</div>
+                                </div>
+                                <span class="tag">Built-in</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+        <div class="dfoot">
+            @if (_templates)
+            {
+                <button class="btn" @onclick="Lib.SaveAsTemplate"><Icon Name="template" />Save current label as template</button>
+            }
+            else
+            {
+                <button class="btn" @onclick="() => Lib.Save()"><Icon Name="save" />Save current label</button>
+            }
+            <span class="grow"></span>
+            <span class="hint" style="margin:0">Everything is stored in this browser only. Export to back up or move it.</span>
+        </div>
+    </div>
+</div>
+
+@code {
+    static readonly List<LabelDocument> BuiltIn = BuiltInTemplates.All();
+    static readonly Dictionary<string, string> Thumbs = new();
+
+    bool _templates;
+    List<LibraryEntry> _docs = new(), _userTemplates = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _templates = Shell.Dialog == Dialog.Templates;
+        Lib.Changed += Reload;
+        await Load();
+        foreach (var doc in BuiltIn)
+        {
+            if (Thumbs.ContainsKey(doc.Id)) continue;
+            Thumbs[doc.Id] = await Ed.Thumbnail(doc);
+            StateHasChanged();
+        }
+    }
+
+    async Task Load()
+    {
+        _docs = await Lib.List(Library.Docs);
+        _userTemplates = await Lib.List(Library.Templates);
+        StateHasChanged();
+    }
+
+    void Reload() => _ = InvokeAsync(Load);
+
+    async Task OpenDoc(string id)
+    {
+        Shell.Close();
+        await Lib.Open(id);
+    }
+
+    async Task Use(LabelDocument template)
+    {
+        Shell.Close();
+        await Lib.New(template);
+    }
+
+    async Task UseUser(string id)
+    {
+        if (await Lib.Get(Library.Templates, id) is { } doc) await Use(doc);
+    }
+
+    static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+    static string Size(LibraryEntry e) => $"{F(e.H)} × {F(e.W)} mm";
+
+    static string When(string iso) =>
+        DateTime.TryParse(iso, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var d) ? d.ToLocalTime().ToString("d MMM yyyy, HH:mm", CultureInfo.InvariantCulture) : "";
+
+    public void Dispose() => Lib.Changed -= Reload;
+}

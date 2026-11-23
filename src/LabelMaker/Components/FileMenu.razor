@@ -1,0 +1,40 @@
+@inject Library Lib
+@inject Shell Shell
+
+<div class="menu-wrap">
+    <button class="btn ghost" @onclick="() => _open = !_open">File<Icon Name="chev-down" /></button>
+    @if (_open)
+    {
+        <div class="menu-scrim" @onclick="() => _open = false"></div>
+        <div class="menu">
+            <button class="menu-item" @onclick="() => Run(() => Lib.New())"><Icon Name="file" />New label</button>
+            <button class="menu-item" @onclick="() => Show(Dialog.Templates)"><Icon Name="template" />New from template…</button>
+            <button class="menu-item" @onclick="() => Show(Dialog.Library)"><Icon Name="folder" />Open from library…</button>
+            <div class="menu-rule"></div>
+            <button class="menu-item" @onclick="() => Run(() => Lib.Save())"><Icon Name="save" />Save to library<span class="kbd">Ctrl S</span></button>
+            <button class="menu-item" @onclick="() => Run(Lib.SaveCopy)"><Icon Name="copy" />Save as a copy</button>
+            <button class="menu-item" @onclick="() => Run(Lib.SaveAsTemplate)"><Icon Name="template" />Save as template</button>
+            <div class="menu-rule"></div>
+            <button class="menu-item" @onclick="() => Run(Lib.Import)"><Icon Name="upload" />Import .json…</button>
+            <button class="menu-item" @onclick="() => Run(async () => await Lib.ExportCurrent())"><Icon Name="download" />Export this label (.json)</button>
+            <button class="menu-item" @onclick="() => Run(Lib.ExportArchive)"><Icon Name="download" />Export everything (.json)</button>
+            <button class="menu-item" @onclick="() => Run(Lib.ExportPng)"><Icon Name="image" />Export as PNG (1-bit)</button>
+        </div>
+    }
+</div>
+
+@code {
+    bool _open;
+
+    async Task Run(Func<Task> action)
+    {
+        _open = false;
+        await action();
+    }
+
+    void Show(Dialog d)
+    {
+        _open = false;
+        Shell.Open(d);
+    }
+}

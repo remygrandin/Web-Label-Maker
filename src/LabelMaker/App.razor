@@ -1,15 +1,25 @@
 ﻿@implements IDisposable
 @inject Shell Shell
-@inject Editor Ed
+@inject Library Lib
 
 <div class="app">
-    <TopBar />
+    <TopBar>
+        <ChildContent><FileMenu /></ChildContent>
+        <Actions>
+            <button class="btn" title="Saved labels and templates" @onclick="() => Shell.Open(Dialog.Library)"><Icon Name="folder" />Library</button>
+        </Actions>
+    </TopBar>
     <ToolRail />
     <LayersPanel />
     <CanvasView />
     <Inspector />
     <StatusBar />
 </div>
+
+@if (Shell.Dialog is Dialog.Library or Dialog.Templates)
+{
+    <LibraryDialog @key="Shell.Dialog" />
+}
 
 @if (Shell.ToastText is { } toast)
 {
@@ -21,7 +31,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender) await Ed.Load(Ed.Doc);
+        if (firstRender) await Lib.Restore();
     }
 
     void Update() => InvokeAsync(StateHasChanged);
