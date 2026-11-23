@@ -7,7 +7,7 @@
         <select class="sel fill" value="@Node.Kind" @onchange="e => Ed.Mutate(() => Node.Kind = Enum.Parse<ShapeKind>(e.Value!.ToString()!))">
             @foreach (var k in Enum.GetValues<ShapeKind>())
             {
-                <option value="@k">@(k == ShapeKind.Rect ? "Rectangle" : k.ToString())</option>
+                <option value="@k">@Label(k)</option>
             }
         </select>
     </div>
@@ -22,8 +22,7 @@
         <span class="lbl">Stroke</span>
         <InkPicker Value="Node.Stroke" ValueChanged="v => Ed.Mutate(() => Node.Stroke = v)" AllowNone="!IsLine" />
         <div class="fill">
-            <NumberField Unit="mm" Value="Node.StrokeWidth" Min="0" Max="20" Step="0.1" Title="Stroke width"
-                         ValueChanged="v => Ed.Mutate(() => Node.StrokeWidth = v)" />
+            <BoundField Node="Node" Prop="StrokeWidth" Unit="mm" Min="0" Max="20" Step="0.1" Title="Stroke width" />
         </div>
     </div>
     <div class="row">
@@ -40,7 +39,7 @@
         <div class="row">
             <span class="lbl">Corners</span>
             <div class="fill">
-                <NumberField Unit="mm" Value="Node.CornerRadius" Min="0" Max="50" Step="0.25" ValueChanged="v => Ed.Mutate(() => Node.CornerRadius = v)" />
+                <BoundField Node="Node" Prop="CornerRadius" Unit="mm" Min="0" Max="200" Step="0.25" />
             </div>
         </div>
     }
@@ -49,7 +48,7 @@
         <div class="row">
             <span class="lbl">@(Node.Kind == ShapeKind.Star ? "Points" : "Sides")</span>
             <div class="fill">
-                <NumberField Value="Node.Sides" Min="3" Max="24" Step="1" Decimals="0" ValueChanged="v => Ed.Mutate(() => Node.Sides = (int)v)" />
+                <BoundField Node="Node" Prop="Sides" Min="3" Max="24" Step="1" Decimals="0" />
             </div>
         </div>
     }
@@ -63,4 +62,8 @@
     [Parameter, EditorRequired] public ShapeNode Node { get; set; } = default!;
 
     bool IsLine => Node.Kind == ShapeKind.Line;
+
+    // "RightTriangle" -> "Right triangle"
+    static string Label(ShapeKind k) => k == ShapeKind.Rect ? "Rectangle"
+        : System.Text.RegularExpressions.Regex.Replace(k.ToString(), "(?<=[a-z])([A-Z])", m => " " + m.Value.ToLowerInvariant());
 }

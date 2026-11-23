@@ -87,6 +87,16 @@
         return [L.w * k, L.h * k];
     };
 
+    // What the inline editor needs to sit exactly on the drawn text, in mm:
+    // [effective font size, line height, text block height].
+    LM.textEditMetrics = (n) => {
+        const L = layoutText(n);
+        const pad = n.padding || 0;
+        let k = L.fmm / REF;
+        if (n.mode === 'Fit' && L.w && L.h) k = Math.min(Math.max(0.01, n.w - 2 * pad) / L.w, Math.max(0.01, n.h - 2 * pad) / L.h);
+        return [k * REF, L.lh * k, L.h * k];
+    };
+
     function drawText(ctx, n) {
         const w = n.w, h = n.h, pad = n.padding || 0;
         if (n.invert) { ctx.fillStyle = '#000'; ctx.fillRect(-w / 2, -h / 2, w, h); }
@@ -140,6 +150,31 @@
             case 'Polygon': poly(polyPoints(Math.max(3, n.sides || 5))); break;
             case 'Star': poly(polyPoints(Math.max(3, n.sides || 5), 0.45)); break;
             case 'Arrow': poly([[-0.5, -0.22], [0.1, -0.22], [0.1, -0.5], [0.5, 0], [0.1, 0.5], [0.1, 0.22], [-0.5, 0.22]]); break;
+            case 'DoubleArrow': poly([[-0.5, 0], [-0.2, -0.5], [-0.2, -0.2], [0.2, -0.2], [0.2, -0.5], [0.5, 0], [0.2, 0.5], [0.2, 0.2], [-0.2, 0.2], [-0.2, 0.5]]); break;
+            case 'Chevron': poly([[-0.5, -0.5], [0.15, -0.5], [0.5, 0], [0.15, 0.5], [-0.5, 0.5], [-0.15, 0]]); break;
+            case 'RightTriangle': poly([[-0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]]); break;
+            case 'Parallelogram': poly([[-0.25, -0.5], [0.5, -0.5], [0.25, 0.5], [-0.5, 0.5]]); break;
+            case 'Trapezoid': poly([[-0.25, -0.5], [0.25, -0.5], [0.5, 0.5], [-0.5, 0.5]]); break;
+            case 'Cross': { const a = 1 / 6; poly([[-a, -0.5], [a, -0.5], [a, -a], [0.5, -a], [0.5, a], [a, a], [a, 0.5], [-a, 0.5], [-a, a], [-0.5, a], [-0.5, -a], [-a, -a]]); break; }
+            case 'Check': poly([[-0.5, 0.05], [-0.32, -0.13], [-0.15, 0.1], [0.32, -0.5], [0.5, -0.35], [-0.15, 0.5]]); break;
+            case 'Semicircle': ctx.moveTo(-w / 2, h / 2); ctx.ellipse(0, h / 2, w / 2, h, 0, Math.PI, 2 * Math.PI); ctx.closePath(); break;
+            case 'Heart':
+                ctx.moveTo(0, 0.5 * h);
+                ctx.bezierCurveTo(-0.62 * w, 0.08 * h, -0.56 * w, -0.5 * h, -0.25 * w, -0.5 * h);
+                ctx.bezierCurveTo(-0.1 * w, -0.5 * h, 0, -0.4 * h, 0, -0.28 * h);
+                ctx.bezierCurveTo(0, -0.4 * h, 0.1 * w, -0.5 * h, 0.25 * w, -0.5 * h);
+                ctx.bezierCurveTo(0.56 * w, -0.5 * h, 0.62 * w, 0.08 * h, 0, 0.5 * h);
+                ctx.closePath();
+                break;
+            case 'Bubble': {
+                const bh = h * 0.74, r = Math.min(bh, w) * 0.22, x0 = -w / 2, y0 = -h / 2, x1 = w / 2, y1 = y0 + bh;
+                ctx.moveTo(x0 + r, y0);
+                ctx.arcTo(x1, y0, x1, y1, r); ctx.arcTo(x1, y1, x0, y1, r);
+                ctx.lineTo(x0 + w * 0.42, y1); ctx.lineTo(x0 + w * 0.2, h / 2); ctx.lineTo(x0 + w * 0.24, y1);
+                ctx.arcTo(x0, y1, x0, y0, r); ctx.arcTo(x0, y0, x1, y0, r);
+                ctx.closePath();
+                break;
+            }
             default: {
                 const r = Math.max(0, Math.min(n.cornerRadius || 0, w / 2, h / 2));
                 if (r > 0) ctx.roundRect(-w / 2, -h / 2, w, h, r); else ctx.rect(-w / 2, -h / 2, w, h);
@@ -310,7 +345,7 @@
     function theme() {
         const cs = getComputedStyle(document.documentElement);
         const g = (k) => cs.getPropertyValue(k).trim();
-        return { bg: g('--bg'), panel: g('--panel'), line: g('--line'), strong: g('--line-strong'), ink3: g('--ink-3'), accent: g('--accent'), guide: g('--guide') };
+        return { bg: g('--bg'), panel: g('--panel'), line: g('--line'), strong: g('--line-strong'), ink3: g('--ink-3'), accent: g('--accent'), guide: g('--guide'), cut: g('--cut') };
     }
 
     function boxPath(ctx, f, b) {
@@ -390,6 +425,21 @@
                 ctx.strokeRect(Math.round(mx) + 0.5, Math.round(my) + 0.5, Math.round(mw) - 1, Math.round(mh) - 1);
                 ctx.restore();
             }
+        }
+
+        // cut marks: a line across the tape with a tab above it to grab
+        for (const c of f.cuts || []) {
+            const x = Math.round(f.panX + c.x * z) + 0.5;
+            ctx.save();
+            ctx.strokeStyle = t.cut; ctx.fillStyle = t.cut; ctx.lineWidth = 1;
+            ctx.setLineDash(c.half ? [2, 3] : [7, 3]);
+            ctx.beginPath(); ctx.moveTo(x, py - 3); ctx.lineTo(x, py + ph + 6); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(x, py - 3); ctx.lineTo(x - 5, py - 9); ctx.lineTo(x - 5, py - 17); ctx.lineTo(x + 5, py - 17); ctx.lineTo(x + 5, py - 9); ctx.closePath();
+            if (c.half) { ctx.fillStyle = t.bg; ctx.fill(); ctx.stroke(); } else ctx.fill();
+            ctx.font = '500 9px "IBM Plex Mono", monospace'; ctx.fillStyle = t.cut; ctx.textBaseline = 'alphabetic';
+            ctx.fillText(c.half ? 'HALF CUT' : 'CUT', x + 9, py - 9);
+            ctx.restore();
         }
 
         ctx.lineWidth = 1;

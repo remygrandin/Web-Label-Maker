@@ -2,20 +2,78 @@
 @inject IJSRuntime JS
 @inject Editor Ed
 
-<main class="stage"><canvas @ref="_canvas"></canvas></main>
+<main class="stage @(Ed.Tool is not null ? "arming" : "")">
+    <canvas @ref="_canvas"></canvas>
+    @if (Ed.EditingNode is { } t)
+    {
+        <textarea id="inline-text" class="inline-text" spellcheck="false" style="@EditorStyle(t)" value="@t.Text"
+                  @oninput="e => Ed.Mutate(() => t.Text = e.Value?.ToString() ?? string.Empty, Key(t))"
+                  @onblur="Ed.EndEdit" @onkeydown="OnEditKey"></textarea>
+    }
+    @if (Ed.Tool is not null)
+    {
+        <div class="tool-hint">@Hint</div>
+    }
+</main>
 
 @code {
     ElementReference _canvas;
     DotNetObjectReference<CanvasView>? _ref;
+    string? _focused;
 
-    // The canvas is painted from JS; the markup never changes.
-    protected override bool ShouldRender() => false;
+    static string Key(TextNode t) => "text:" + t.Id;
+
+    string Hint => Ed.Tool switch
+    {
+        "text" => "Click to add text, or drag out a box · Esc to cancel",
+        "image" => "Drag to place the image, or click for the default size · Esc to cancel",
+        var c when c!.StartsWith("cut:") => "Click on the label where the tape should be cut · Esc to cancel",
+        _ => "Drag to draw, or click for the default size · Shift keeps it square · Esc to cancel",
+    };
+
+    protected override void OnInitialized() => Ed.Changed += Update;
+    void Update() => InvokeAsync(StateHasChanged);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
-        _ref = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("LM.initCanvas", _canvas, _ref);
+        if (firstRender)
+        {
+            _ref = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("LM.initCanvas", _canvas, _ref);
+        }
+        if (Ed.EditingId != _focused)
+        {
+            _focused = Ed.EditingId;
+            if (_focused is not null) await JS.InvokeVoidAsync("LM.focus", "#inline-text", Ed.EditSelectAll);
+        }
+    }
+
+    void OnEditKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape") Ed.EndEdit();
+    }
+
+    // A textarea laid exactly over the text object: same box, font, size and rotation.
+    string EditorStyle(TextNode t)
+    {
+        var m = ((IJSInProcessRuntime)JS).Invoke<double[]>("LM.textEditMetrics", t);
+        double z = Ed.Zoom, pad = t.Padding * z;
+        double inner = Math.Max(0, t.H - 2 * t.Padding), block = m[2];
+        double off = t.Mode == TextMode.Auto ? 0 : t.VAlign switch { VAlign.Middle => (inner - block) / 2, VAlign.Bottom => inner - block, _ => 0 };
+        // left-aligned hugging text gets room for the next character before the box catches up
+        // hugging text: let the field size itself to what is typed (macros make the raw text longer than the printed one)
+        string size = t.Mode == TextMode.Auto
+            ? FormattableString.Invariant($"min-width:{t.W * z:0.##}px;min-height:{t.H * z:0.##}px;field-sizing:content;")
+            : FormattableString.Invariant($"width:{t.W * z:0.##}px;height:{t.H * z:0.##}px;");
+        FormattableString css = $"""
+            left:{Ed.PanX + t.X * z:0.##}px;top:{Ed.PanY + t.Y * z:0.##}px;{size}
+            padding:{pad + Math.Max(0, off) * z:0.##}px {pad:0.##}px 0 {pad:0.##}px;
+            font-family:'{t.FontFamily}','IBM Plex Sans',sans-serif;font-size:{m[0] * z:0.###}px;line-height:{m[1] * z:0.###}px;
+            font-weight:{(t.Bold ? 700 : 400)};font-style:{(t.Italic ? "italic" : "normal")};letter-spacing:{t.Tracking / 1000:0.###}em;
+            text-align:{t.Align.ToString().ToLowerInvariant()};white-space:{(t.Mode == TextMode.Wrap ? "pre-wrap" : "pre")};
+            transform:rotate({t.Rotation:0.##}deg);color:{(t.Invert ? "#fff" : "#000")};background:{(t.Invert ? "#000" : "#fff")};
+            """;
+        return FormattableString.Invariant(css).ReplaceLineEndings("");
     }
 
     [JSInvokable] public void OnCanvasResize(double w, double h) => Ed.CanvasResized(w, h);
@@ -36,5 +94,9 @@
         Ed.Refresh();
     }
 
-    public void Dispose() => _ref?.Dispose();
+    public void Dispose()
+    {
+        Ed.Changed -= Update;
+        _ref?.Dispose();
+    }
 }

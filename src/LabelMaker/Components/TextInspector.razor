@@ -1,18 +1,23 @@
-@implements IDisposable
 @inject Editor Ed
-@inject IJSRuntime JS
 
 <div class="sect">
-    <div class="sect-title">Text</div>
+    <div class="sect-title">
+        Text
+        <span class="grow"></span>
+        <InsertMacro OnInsert="m => Ed.Mutate(() => Node.Text += m)" />
+    </div>
     <textarea id="text-content" class="area" spellcheck="false" rows="3" value="@Node.Text"
               @oninput="e => Ed.Mutate(() => Node.Text = e.Value?.ToString() ?? string.Empty, TextKey)"></textarea>
+    @if (Node.Text.Contains('{'))
+    {
+        <div class="hint">Prints as: <b style="color:var(--ink)">@Ed.ResolveText(Node.Text)</b></div>
+    }
     <div class="row">
         <div class="fill"><FontPicker Value="@Node.FontFamily" ValueChanged="f => Ed.Mutate(() => Node.FontFamily = f)" /></div>
     </div>
     <div class="row">
         <div class="fill">
-            <NumberField Unit="pt" Value="Node.FontSize" Min="2" Max="400" Step="0.5" Decimals="1" Disabled="Node.Mode == TextMode.Fit"
-                         Title="Font size" ValueChanged="v => Ed.Mutate(() => Node.FontSize = v)" />
+            <BoundField Node="Node" Prop="FontSize" Unit="pt" Min="2" Max="400" Step="0.5" Decimals="1" Disabled="Node.Mode == TextMode.Fit" Title="Font size" />
         </div>
         <div class="seg">
             <button class="@(Node.Bold ? "on" : "")" title="Bold" @onclick="() => Ed.Mutate(() => Node.Bold = !Node.Bold)"><Icon Name="bold" /></button>
@@ -25,15 +30,21 @@
         </div>
     </div>
     <div class="row">
-        <span class="lbl">Box</span>
+        <span class="lbl">Width</span>
         <div class="seg fill">
-            <button class="@(Node.Mode == TextMode.Auto ? "on" : "")" title="The box hugs the text; resizing scales the font" @onclick="() => SetMode(TextMode.Auto)">Hug</button>
-            <button class="@(Node.Mode == TextMode.Wrap ? "on" : "")" title="Fixed box; long lines wrap" @onclick="() => SetMode(TextMode.Wrap)">Wrap</button>
-            <button class="@(Node.Mode == TextMode.Fit ? "on" : "")" title="The text scales to fill the box" @onclick="() => SetMode(TextMode.Fit)">Fill</button>
+            <button class="@(Node.Mode == TextMode.Auto ? "on" : "")" title="The box grows and shrinks with the text" @onclick="() => SetMode(TextMode.Auto)">Auto</button>
+            <button class="@(Node.Mode != TextMode.Auto ? "on" : "")" title="The box keeps the size you give it" @onclick="() => SetMode(Node.Mode == TextMode.Auto ? TextMode.Wrap : Node.Mode)">Fixed</button>
         </div>
     </div>
     @if (Node.Mode != TextMode.Auto)
     {
+        <div class="row">
+            <span class="lbl">If too long</span>
+            <div class="seg fill">
+                <button class="@(Node.Mode == TextMode.Wrap ? "on" : "")" title="Break onto new lines at the box edge; the font size stays" @onclick="() => SetMode(TextMode.Wrap)">Line break</button>
+                <button class="@(Node.Mode == TextMode.Fit ? "on" : "")" title="Scale the text so it always fills the box" @onclick="() => SetMode(TextMode.Fit)">Fit size</button>
+            </div>
+        </div>
         <div class="row">
             <span class="lbl">Vertical</span>
             <div class="seg">
@@ -44,10 +55,8 @@
         </div>
     }
     <div class="grid2" style="margin-top:6px">
-        <NumberField Label="LH" Value="Node.LineHeight" Min="0.6" Max="3" Step="0.05" Title="Line height"
-                     ValueChanged="v => Ed.Mutate(() => Node.LineHeight = v)" />
-        <NumberField Label="TR" Value="Node.Tracking" Min="-200" Max="1000" Step="10" Decimals="0" Title="Letter spacing (1/1000 em)"
-                     ValueChanged="v => Ed.Mutate(() => Node.Tracking = v)" />
+        <BoundField Node="Node" Prop="LineHeight" Label="LH" Min="0.6" Max="3" Step="0.05" Title="Line height" />
+        <BoundField Node="Node" Prop="Tracking" Label="TR" Min="-200" Max="1000" Step="10" Decimals="0" Title="Letter spacing (1/1000 em)" />
     </div>
     <div class="row">
         <label class="check fill">
@@ -55,10 +64,10 @@
             White on black
         </label>
         <div style="width:96px">
-            <NumberField Label="PAD" Unit="mm" Value="Node.Padding" Min="0" Max="20" Step="0.25" Title="Inner padding"
-                         ValueChanged="v => Ed.Mutate(() => Node.Padding = v)" />
+            <BoundField Node="Node" Prop="Padding" Label="PAD" Unit="mm" Min="0" Max="20" Step="0.25" Title="Inner padding" />
         </div>
     </div>
+    <div class="hint">Double-click the text on the label to edit it in place.</div>
 </div>
 
 @code {
@@ -66,17 +75,5 @@
 
     string TextKey => "text:" + Node.Id;
 
-    protected override void OnInitialized() => Ed.TextFocusRequested += Focus;
-    public void Dispose() => Ed.TextFocusRequested -= Focus;
-
-    async void Focus()
-    {
-        await Task.Delay(30); // let the inspector render the field first
-        await JS.InvokeVoidAsync("LM.focus", "#text-content", true);
-    }
-
-    void SetMode(TextMode mode) => Ed.Mutate(() =>
-    {
-        Node.Mode = mode;
-    });
+    void SetMode(TextMode mode) => Ed.Mutate(() => Node.Mode = mode);
 }

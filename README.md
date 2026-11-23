@@ -8,8 +8,12 @@ Built with Blazor WebAssembly (.NET 10) and served as static files from a Cloudf
 
 ## Features
 
-- **Objects**: text (hug / wrap / fill box modes), rectangles, ellipses, lines, polygons,
-  stars, arrows, dithered images, QR / Data Matrix / Aztec / PDF417 and eight linear barcodes.
+- **Objects**: text edited in place on the label (auto or fixed width, with line breaks or fit-to-box), 23 shapes,
+  dithered images, QR / Data Matrix / Aztec / PDF417 and eight linear barcodes. Pick a tool, then drag on the label.
+- **Variables and macros**: `{name}` variables, a `{seq:0000}` counter that advances per printed copy, `{date}`,
+  maths and formats inside the braces, and numeric fields bound to expressions such as `Title.right + 2`.
+- **2D code content**: forms for URL, Wi-Fi, vCard, email, phone, SMS and location payloads.
+- **Cut marks**: full and half cuts placed along the label; the print preview shows each piece.
 - **Layers**: a tree with nested groups, drag-and-drop ordering, rename, hide, lock.
 - **Layout**: multi-selection, six-way align, distribute, magnetic snapping to objects,
   margins and label edges (each switchable), toggleable margin guides, rulers.

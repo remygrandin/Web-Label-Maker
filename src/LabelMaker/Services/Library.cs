@@ -46,6 +46,13 @@ public sealed class Library
         _ed.SaveRequested += () => _ = Save();
     }
 
+    /// <summary>The working label also lives in the library, so autosave keeps that copy current.</summary>
+    public bool InLibrary { get; private set; }
+    public DateTime? SavedAt { get; private set; }
+    public bool Pending { get; private set; }
+    /// <summary>Raised when the autosave state changes.</summary>
+    public event Action? StateChanged;
+
     /// <summary>Raised when stored labels or templates change.</summary>
     public event Action? Changed;
 
@@ -59,7 +66,10 @@ public sealed class Library
             var json = await _js.InvokeAsync<string?>("LM.db.get", "meta", "autosave");
             if (json is not null && DocJson.Read<WorkingState>(json) is { } state)
             {
-                await _ed.Load(state.Document, state.Dirty);
+                InLibrary = await _js.InvokeAsync<string?>("LM.db.get", Docs, state.Document.Id) is not null;
+                await _ed.Load(state.Document, state.Dirty && !InLibrary);
+                SavedAt = DateTime.Now;
+                StateChanged?.Invoke();
                 return;
             }
         }
@@ -70,6 +80,7 @@ public sealed class Library
     async void ScheduleAutosave()
     {
         _debounce?.Cancel();
+        if (!Pending) { Pending = true; StateChanged?.Invoke(); }
         var cts = _debounce = new CancellationTokenSource();
         try { await Task.Delay(600, cts.Token); } catch (TaskCanceledException) { return; }
         await Autosave();
@@ -81,8 +92,21 @@ public sealed class Library
         {
             var json = DocJson.Write(new WorkingState { Document = Pack(_ed.Doc), Dirty = _ed.Dirty });
             await _js.InvokeVoidAsync("LM.db.put", "meta", new { id = "autosave", json });
+            if (InLibrary)
+            {
+                await Put(Docs, _ed.Doc);
+                if (_ed.Dirty) { _ed.Dirty = false; _ed.Refresh(); }
+            }
+            SavedAt = DateTime.Now;
+            Pending = false;
+            StateChanged?.Invoke();
         }
-        catch (Exception ex) { Console.Error.WriteLine($"Autosave failed: {ex.Message}"); }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Autosave failed: {ex.Message}");
+            Pending = false;
+            StateChanged?.Invoke();
+        }
     }
 
     /// <summary>A copy of the document carrying only the image assets it still uses.</summary>
@@ -93,6 +117,7 @@ public sealed class Library
         {
             Id = d.Id, Name = d.Name, MediaId = d.MediaId, WidthMm = d.WidthMm, HeightMm = d.HeightMm, AutoWidth = d.AutoWidth,
             Dpi = d.Dpi, Margins = d.Margins, Nodes = d.Nodes, Modified = d.Modified,
+            Variables = d.Variables, Counter = d.Counter, Cuts = d.Cuts,
             Assets = d.Assets.Where(a => used.Contains(a.Key)).ToDictionary(a => a.Key, a => a.Value),
         };
     }
@@ -123,12 +148,14 @@ public sealed class Library
     public async Task Delete(string store, string id)
     {
         await _js.InvokeVoidAsync("LM.db.del", store, id);
+        if (store == Docs && id == _ed.Doc.Id) { InLibrary = false; StateChanged?.Invoke(); }
         Changed?.Invoke();
     }
 
     /// <summary>Save the working label into the library under its current name.</summary>
     public async Task Save(bool quiet = false)
     {
+        InLibrary = true;
         await Put(Docs, _ed.Doc);
         _ed.Dirty = false;
         await Autosave();
@@ -180,6 +207,7 @@ public sealed class Library
         if (id == _ed.Doc.Id) return;
         if (await Get(Docs, id) is not { } doc) return;
         await KeepCurrent();
+        InLibrary = true;
         await _ed.Load(doc);
         await Autosave();
     }
@@ -196,6 +224,7 @@ public sealed class Library
             doc.Nodes = DocJson.CloneNodes(doc.Nodes);
         }
         doc.Modified = DateTime.UtcNow;
+        InLibrary = false;
         await _ed.Load(doc);
         await Autosave();
     }
@@ -261,7 +290,7 @@ public sealed class Library
                 {
                     await Put(Docs, doc);
                     Changed?.Invoke();
-                    if (doc.Id != _ed.Doc.Id) await Open(doc.Id); else await _ed.Load(doc);
+                    if (doc.Id != _ed.Doc.Id) await Open(doc.Id); else { InLibrary = true; await _ed.Load(doc); }
                     _shell.Toast($"Imported “{doc.Name}”.");
                 }
             }

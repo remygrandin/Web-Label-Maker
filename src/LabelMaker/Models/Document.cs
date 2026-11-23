@@ -31,6 +31,12 @@ public sealed class LabelDocument
     public List<Node> Nodes { get; set; } = new();
     /// <summary>Embedded images, asset id → data URL.</summary>
     public Dictionary<string, string> Assets { get; set; } = new();
+    /// <summary>User-defined values, usable as {name} in text, code values and numeric fields.</summary>
+    public List<Variable> Variables { get; set; } = new();
+    /// <summary>Backs the {seq} macro; advances with every printed label.</summary>
+    public Counter Counter { get; set; } = new();
+    /// <summary>Places along the label where the tape is cut.</summary>
+    public List<CutMark> Cuts { get; set; } = new();
     public DateTime Modified { get; set; } = DateTime.UtcNow;
 }
 
@@ -92,4 +98,26 @@ public static class DocJson
         copy.ForEach(Reid);
         return copy;
     }
+}
+
+public sealed class Variable
+{
+    public string Name { get; set; } = "";
+    public string Value { get; set; } = "";
+}
+
+public sealed class Counter
+{
+    /// <summary>The value {seq} shows now, and the first one printed.</summary>
+    public double Value { get; set; } = 1;
+    public double Step { get; set; } = 1;
+}
+
+public sealed class CutMark
+{
+    public string Id { get; set; } = Ids.New();
+    /// <summary>Position along the label, mm.</summary>
+    public double X { get; set; }
+    /// <summary>Half cut: the tape is cut but the backing is left whole.</summary>
+    public bool Half { get; set; }
 }

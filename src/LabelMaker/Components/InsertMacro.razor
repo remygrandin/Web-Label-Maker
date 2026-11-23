@@ -1,0 +1,55 @@
+@inject Editor Ed
+
+@* Menu of {…} macros that can be dropped into a text or code value. *@
+<div class="menu-wrap">
+    <button class="btn sm" title="Insert a variable, counter or date" @onclick="() => _open = !_open"><Icon Name="var" />Insert</button>
+    @if (_open)
+    {
+        <div class="menu-scrim" @onclick="() => _open = false"></div>
+        <div class="menu right" style="top:24px">
+            @if (Ed.Doc.Variables.Count > 0)
+            {
+                <div class="menu-head">Variables</div>
+                @foreach (var v in Ed.Doc.Variables.Where(v => v.Name.Length > 0))
+                {
+                    var name = v.Name;
+                    <button class="menu-item" @onclick="@(() => Pick("{" + name + "}"))">@name<span class="kbd">@v.Value</span></button>
+                }
+            }
+            <div class="menu-head">Counter</div>
+            <button class="menu-item" @onclick="@(() => Pick("{seq}"))">Counter<span class="kbd">{seq}</span></button>
+            <button class="menu-item" @onclick="@(() => Pick("{seq:0000}"))">Counter, zero padded<span class="kbd">{seq:0000}</span></button>
+            <div class="menu-head">Date and time</div>
+            <button class="menu-item" @onclick="@(() => Pick("{date}"))">Date<span class="kbd">{date}</span></button>
+            <button class="menu-item" @onclick="@(() => Pick("{date:dd/MM/yyyy}"))">Date, custom<span class="kbd">{date:dd/MM/yyyy}</span></button>
+            <button class="menu-item" @onclick="@(() => Pick("{time}"))">Time<span class="kbd">{time}</span></button>
+            @if (Named.Count > 0)
+            {
+                <div class="menu-head">Other objects</div>
+                @foreach (var n in Named)
+                {
+                    var name = n.Name;
+                    <button class="menu-item" @onclick="@(() => Pick("{" + name + "}"))">@name<span class="kbd">{@name}</span></button>
+                }
+            }
+            <div class="menu-rule"></div>
+            <div class="hint" style="padding:2px 8px 6px;margin:0;max-width:260px">
+                Maths and formats work inside the braces: {seq + 100:0000}, {price * 1.2:0.00}, {upper(name)}. Define variables and the counter in the label settings (deselect everything).
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public EventCallback<string> OnInsert { get; set; }
+
+    bool _open;
+
+    List<Node> Named => Ed.All().Where(n => n.Name.Length > 0 && n is TextNode or BarcodeNode && !Ed.Selection.Contains(n.Id)).Take(8).ToList();
+
+    Task Pick(string macro)
+    {
+        _open = false;
+        return OnInsert.InvokeAsync(macro);
+    }
+}

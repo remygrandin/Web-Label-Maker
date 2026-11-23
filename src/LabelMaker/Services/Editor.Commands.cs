@@ -52,29 +52,6 @@ public sealed partial class Editor
 
     // ---- create / delete -------------------------------------------------------------------
 
-    /// <summary>Insert a new object centred on the label, on top of the current scope.</summary>
-    public void Add(Node node)
-    {
-        Mutate(() =>
-        {
-            var area = MarginRect;
-            node.Y = area.Cy - node.H / 2;
-            // continue to the right of what is already there; fall back to the centre when the label is full
-            double right = Geo.Bounds(Doc.Nodes.Where(n => n.Visible)) is { } used ? Math.Max(area.X, used.R + 1.5) : area.X;
-            if (Doc.AutoWidth || right + node.W <= area.R + 0.01) node.X = right;
-            else
-            {
-                node.X = Math.Max(area.X, area.Cx - node.W / 2);
-                while (All().Any(o => o is not GroupNode && Math.Abs(o.X - node.X) < 0.01 && Math.Abs(o.Y - node.Y) < 0.01))
-                {
-                    node.X += 1.5; node.Y += 0.5;
-                }
-            }
-            ScopeList.Add(node);
-            Select(node);
-        });
-    }
-
     public string AddAsset(string dataUrl)
     {
         var existing = Doc.Assets.FirstOrDefault(a => a.Value == dataUrl).Key;
@@ -264,7 +241,8 @@ public sealed partial class Editor
 
     public void SetVisible(Node n, bool visible) => Mutate(() => n.Visible = visible);
     public void SetLocked(Node n, bool locked) => Mutate(() => n.Locked = locked);
-    public void Rename(Node n, string name) => Mutate(() => n.Name = name.Trim());
+    /// <summary>Names are kept identifier-like so expressions can refer to them.</summary>
+    public void Rename(Node n, string name) => Mutate(() => n.Name = CleanName(name));
 
     // ---- align / distribute -----------------------------------------------------------------
 

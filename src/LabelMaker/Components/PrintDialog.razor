@@ -19,7 +19,7 @@
                         {
                             <img src="@_preview" alt="1-bit print preview" style="width:@(PreviewWidth)px" />
                         }
-                        else if (Printer.Geometry is null)
+                        else if (Printer.Geometry is null && _preview is null)
                         {
                             <div class="warn">@Printer.Model.Name cannot print on @Printer.Media.Label tape.</div>
                         }
@@ -28,6 +28,9 @@
                         Exactly the dots that will be sent. Tinted areas fall outside what this printer can reach on
                         @Printer.Media.Label tape, or inside its feed margins, and will not print.
                     </div>
+                    @if (Printer.PreviewError is { } perr) { <div class="warn">@perr</div> }
+                    @if (Printer.CutNote is { } note) { <div class="warn">@note</div> }
+                    @if (Ed.UsesSeq) { <div class="hint">Counter: this run prints <b>@Ed.Doc.Counter.Value</b> onwards, one step per copy.</div> }
                     <div class="kv" style="margin-top:12px">
                         <span>Label</span><b>@F(Ed.Doc.WidthMm) × @F(Ed.Doc.HeightMm) mm</b>
                         <span>Resolution</span><b>@Printer.Model.Dpi dpi</b>

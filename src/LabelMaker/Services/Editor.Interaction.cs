@@ -5,7 +5,7 @@ namespace LabelMaker.Services;
 // Pointer and keyboard handling for the canvas.
 public sealed partial class Editor
 {
-    enum Drag { None, Pan, Marquee, PendingMove, Move, Resize, Rotate, LineEnd }
+    enum Drag { None, Pan, Marquee, PendingMove, Move, Resize, Rotate, LineEnd, Create, Cut }
     enum HandleKind { Resize, Rotate, LineA, LineB }
 
     readonly record struct Handle(double Sx, double Sy, int Hx, int Hy, HandleKind Kind);
@@ -185,6 +185,28 @@ public sealed partial class Editor
 
         if (button == 1 || button == 2 || space) { _drag = Drag.Pan; _pan0X = PanX; _pan0Y = PanY; return; }
         if (button != 0) return;
+        if (EditingId is not null) EndEdit();
+
+        if (Tool is not null)
+        {
+            if (Tool.StartsWith("cut:"))
+            {
+                bool half = Tool == "cut:Half";
+                Tool = null;
+                AddCut(_wx0, half);
+                return;
+            }
+            _drag = Drag.Create;
+            return;
+        }
+
+        if (HitCut(sx, sy) is { } cut)
+        {
+            _drag = Drag.Cut;
+            _dragCutId = cut.Id;
+            _changed = false;
+            return;
+        }
 
         if (HitHandle(sx, sy) is { } h)
         {
@@ -230,9 +252,11 @@ public sealed partial class Editor
         {
             case Drag.None:
             {
+                if (Tool is not null) { CursorMoved?.Invoke(); return "crosshair"; }
                 string cursor = "default";
                 string? hover = null;
-                if (HitHandle(sx, sy) is { } h) cursor = CursorFor(h);
+                if (HitCut(sx, sy) is not null) cursor = "ew-resize";
+                else if (HitHandle(sx, sy) is { } h) cursor = CursorFor(h);
                 else if (HitLeaf(wx, wy) is { } leaf)
                 {
                     var path = PathTo(leaf);
@@ -246,8 +270,26 @@ public sealed partial class Editor
             }
             case Drag.Pan:
                 PanX = _pan0X + sx - _sx; PanY = _pan0Y + sy - _sy;
-                Render();
+                if (EditingId is not null) Refresh(); else Render();
                 return "grabbing";
+            case Drag.Cut:
+            {
+                if (Doc.Cuts.FirstOrDefault(c => c.Id == _dragCutId) is { } mark)
+                {
+                    MarkChanged();
+                    mark.X = Math.Clamp(Math.Round(wx * 2) / 2, 1, Math.Max(1, Doc.WidthMm - 1));
+                    Render();
+                    Changed?.Invoke();
+                }
+                return "ew-resize";
+            }
+            case Drag.Create:
+            {
+                var r = CreateRect(wx, wy, shift);
+                _marquee = [r.X, r.Y, r.W, r.H];
+                Render();
+                return "crosshair";
+            }
             case Drag.Marquee:
                 _marquee = [Math.Min(_wx0, wx), Math.Min(_wy0, wy), Math.Abs(wx - _wx0), Math.Abs(wy - _wy0)];
                 Render();
@@ -285,6 +327,13 @@ public sealed partial class Editor
         _guides = new();
         switch (drag)
         {
+            case Drag.Create:
+            {
+                var (cx, cy) = ToWorld(sx, sy);
+                _marquee = null;
+                FinishCreate(cx, cy, shift, Math.Abs(sx - _sx) + Math.Abs(sy - _sy) >= 5);
+                return;
+            }
             case Drag.Marquee when _marquee is { } m:
             {
                 var box = new Rect(m[0], m[1], m[2], m[3]);
@@ -298,6 +347,7 @@ public sealed partial class Editor
                 break;
         }
         _marquee = null;
+        if (drag == Drag.Cut) Doc.Cuts.Sort((a, b) => a.X.CompareTo(b.X));
         if (_changed) { _changed = false; Touch(); } else Refresh();
     }
 
@@ -316,7 +366,7 @@ public sealed partial class Editor
         {
             Select(target);
             Refresh();
-            TextFocusRequested?.Invoke();
+            BeginEdit((TextNode)target);
         }
     }
 
@@ -325,7 +375,7 @@ public sealed partial class Editor
         if ((mods & 2) != 0) { ZoomAt(sx, sy, Math.Exp(-dy * 0.0022)); return; }
         if ((mods & 1) != 0 && dx == 0) (dx, dy) = (dy, 0);
         PanX -= dx; PanY -= dy;
-        Render();
+        if (EditingId is not null) Refresh(); else Render();
     }
 
     string CursorFor(Handle h)
@@ -492,6 +542,8 @@ public sealed partial class Editor
             case "ArrowRight": Nudge(step, 0); return true;
             case "ArrowUp": Nudge(0, -step); return true;
             case "ArrowDown": Nudge(0, step); return true;
+            case "Enter" when Single is TextNode editable: BeginEdit(editable); return true;
+            case "Escape" when Tool is not null: SetTool(null); return true;
             case "Escape":
                 if (Find(ScopeId) is { } scope) { ScopeId = Locate(scope).Parent?.Id; Select(scope); }
                 else Selection.Clear();

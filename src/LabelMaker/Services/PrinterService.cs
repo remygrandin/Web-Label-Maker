@@ -127,13 +127,33 @@ public sealed class PrinterService
         return f;
     }
 
+    /// <summary>Cut marks this printer can act on, in dots. Printers without a cutter print the label in one piece.</summary>
+    List<CutMark> ActiveCuts => Model.AutoCut ? _ed.Doc.Cuts.OrderBy(c => c.X).ToList() : new();
+
+    public string? CutNote => _ed.Doc.Cuts.Count == 0 ? null
+        : !Model.AutoCut ? "This printer has no automatic cutter, so cut marks are ignored."
+        : !Model.HalfCut && _ed.Doc.Cuts.Any(c => c.Half) ? "This printer cannot half cut: half-cut marks become a gap without a cut."
+        : null;
+
+    int Dots(double mm) => (int)Math.Round(mm * Model.Dpi / 25.4);
+
+    public string? PreviewError { get; private set; }
+
     public async Task<string?> Preview()
     {
+        PreviewError = null;
         if (Geometry is not { } g) return null;
         var f = Frame();
-        int w = (int)Math.Round(f.DocW * f.Dpi / 25.4), h = (int)Math.Round(f.DocH * f.Dpi / 25.4);
-        var win = Brother.PrintWindow(Model, g, Options, w, h);
-        return await _js.InvokeAsync<string>("LM.printPreview", f, win.X, win.Y, win.W, win.H);
+        int w = Dots(f.DocW), h = Dots(f.DocH);
+        int y0 = (int)Math.Round((h - g.PrintPins) / 2.0);
+        var rects = new List<int>();
+        try
+        {
+            foreach (var (x0, lines) in Brother.Pieces(Model, Options, w, ActiveCuts.Select(c => Dots(c.X))))
+                rects.AddRange([x0, y0, lines, g.PrintPins]);
+        }
+        catch (InvalidOperationException ex) { PreviewError = ex.Message; }
+        return await _js.InvokeAsync<string>("LM.printPreview", f, rects);
     }
 
     public async Task Print(bool ignoreTapeCheck = false)
@@ -156,23 +176,52 @@ public sealed class PrinterService
             else if (!Connected) return;
             else Say("Sending the job without a status reply.");
 
-            var raster = await _js.InvokeAsync<byte[]>("LM.rasterize", Frame());
-            int w = BitConverter.ToInt32(raster, 0), h = BitConverter.ToInt32(raster, 4);
-            var job = Brother.BuildJob(Model, Media, g, Options, raster[8..], w, h);
-            Say($"Sending {job.Length:N0} bytes ({Math.Max(0, w - 2 * Brother.FeedDots(Model, Options))} raster lines × {Math.Clamp(Options.Copies, 1, 99)}).");
+            // One page per piece between cut marks, per copy. A label using {seq} is drawn afresh for each copy.
+            int copies = Math.Clamp(Options.Copies, 1, 99);
+            bool seq = _ed.UsesSeq;
+            var counter = _ed.Doc.Counter;
+            var cuts = ActiveCuts;
+            var pages = new List<Brother.PrintPage>();
+            byte[]? raster = null;
+            try
+            {
+                for (int copy = 0; copy < copies; copy++)
+                {
+                    if (raster is null || seq)
+                    {
+                        _ed.SeqOverride = counter.Value + copy * counter.Step;
+                        _ed.Sync(); // text boxes and code matrices for this copy's values
+                        raster = await _js.InvokeAsync<byte[]>("LM.rasterize", Frame());
+                    }
+                    int w = BitConverter.ToInt32(raster, 0), h = BitConverter.ToInt32(raster, 4);
+                    var bits = raster[8..];
+                    var pieces = Brother.Pieces(Model, Options, w, cuts.Select(c => Dots(c.X)));
+                    for (int i = 0; i < pieces.Count; i++)
+                    {
+                        bool end = i == pieces.Count - 1;
+                        pages.Add(new Brother.PrintPage(bits, w, h, pieces[i].X0, pieces[i].Lines,
+                            Cut: end ? Options.AutoCut : !cuts[i].Half,
+                            Half: end ? Options.HalfCut : cuts[i].Half));
+                    }
+                }
+            }
+            finally { _ed.SeqOverride = null; _ed.Sync(); }
+
+            var job = Brother.BuildJob(Model, Media, g, Options, pages);
+            Say($"Sending {job.Length:N0} bytes ({pages.Count} page{(pages.Count > 1 ? "s" : "")}, {pages.Sum(p => p.Lines)} raster lines).");
             await _js.InvokeVoidAsync("LM.serial.write", job);
 
             // The printer announces phase changes, then "printing completed" per page.
-            int done = 0, copies = Math.Clamp(Options.Copies, 1, 99);
-            var deadline = DateTime.UtcNow.AddSeconds(30 + 20 * copies);
-            while (done < copies && DateTime.UtcNow < deadline)
+            int done = 0;
+            var deadline = DateTime.UtcNow.AddSeconds(30 + 20 * pages.Count);
+            while (done < pages.Count && DateTime.UtcNow < deadline)
             {
                 var raw = await _js.InvokeAsync<byte[]?>("LM.serial.readStatus", 2000);
                 if (raw is not { Length: 32 }) continue;
                 var s = new PrinterStatus { Raw = raw };
                 switch (s.StatusType)
                 {
-                    case 0x01: done++; Say(copies > 1 ? $"Printed {done} of {copies}." : "Printing completed."); break;
+                    case 0x01: done++; Say(pages.Count > 1 ? $"Printed page {done} of {pages.Count}." : "Printing completed."); break;
                     case 0x02:
                         Status = s;
                         Say($"Printer error: {(s.Errors.Count > 0 ? string.Join(", ", s.Errors) : "unspecified")}.");
@@ -182,8 +231,11 @@ public sealed class PrinterService
                     case 0x06 when s.Phase == 1: Say("Printing…"); break;
                 }
             }
-            if (done < copies) Say("No completion message from the printer; it may still have printed.");
+            if (done < pages.Count) Say("No completion message from the printer; it may still have printed.");
             else _shell.Toast(copies > 1 ? $"Printed {copies} labels." : "Label printed.");
+
+            // the next print run carries on where this one stopped
+            if (seq) _ed.Mutate(() => counter.Value += counter.Step * copies);
         }
         catch (Exception ex)
         {

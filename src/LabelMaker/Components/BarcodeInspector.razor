@@ -1,7 +1,14 @@
 @inject Editor Ed
 
 <div class="sect">
-    <div class="sect-title">Code</div>
+    <div class="sect-title">
+        Code
+        <span class="grow"></span>
+        @if (Node.Content == "text" || !Node.Is2D)
+        {
+            <InsertMacro OnInsert="m => Ed.Mutate(() => Node.Value += m)" />
+        }
+    </div>
     <div class="row">
         <span class="lbl">Format</span>
         <select class="sel fill" value="@Node.Format" @onchange="SetFormat">
@@ -13,9 +20,65 @@
             </optgroup>
         </select>
     </div>
-    <textarea class="area" style="margin-top:6px;min-height:44px" rows="2" spellcheck="false" placeholder="Value to encode" value="@Node.Value"
-              @oninput="e => Ed.Mutate(() => Node.Value = e.Value?.ToString() ?? string.Empty, Key)"></textarea>
-    @if (Barcodes.Error(Node) is { } err)
+    @if (Node.Is2D)
+    {
+        <div class="row">
+            <span class="lbl">Content</span>
+            <select class="sel fill" value="@Node.Content" @onchange="SetContent">
+                @foreach (var t in CodeContent.Types) { <option value="@t.Id">@t.Label</option> }
+            </select>
+        </div>
+    }
+
+    @if (Node.Content == "text" || !Node.Is2D)
+    {
+        <textarea class="area" style="margin-top:6px;min-height:44px" rows="2" spellcheck="false" placeholder="Value to encode" value="@Node.Value"
+                  @oninput="e => Ed.Mutate(() => Node.Value = e.Value?.ToString() ?? string.Empty, Key)"></textarea>
+    }
+    else
+    {
+        @foreach (var f in CodeContent.FieldsOf(Node.Content))
+        {
+            var field = f;
+            <div class="row">
+                @if (field.Kind == "check")
+                {
+                    <span class="lbl"></span>
+                    <label class="check">
+                        <input type="checkbox" checked="@(Get(field.Key) == "true")" @onchange="@(e => Set(field.Key, (bool)e.Value! ? "true" : ""))" /><i></i>
+                        @field.Label
+                    </label>
+                }
+                else
+                {
+                    <span class="lbl">@field.Label</span>
+                    @if (field.Kind.StartsWith("select:"))
+                    {
+                        <select class="sel fill" value="@(Get(field.Key) is { Length: > 0 } v ? v : field.Kind[7..].Split('|')[0])" @onchange="e => Set(field.Key, e.Value?.ToString())">
+                            @foreach (var o in field.Kind[7..].Split('|')) { <option value="@o">@(o == "nopass" ? "None (open)" : o)</option> }
+                        </select>
+                    }
+                    else if (field.Kind == "area")
+                    {
+                        <textarea class="area fill" style="min-height:40px" rows="2" spellcheck="false" value="@Get(field.Key)"
+                                  @oninput="e => Set(field.Key, e.Value?.ToString())"></textarea>
+                    }
+                    else
+                    {
+                        <input class="inp fill" spellcheck="false" autocomplete="off" placeholder="@field.Placeholder" value="@Get(field.Key)"
+                               @oninput="e => Set(field.Key, e.Value?.ToString())" />
+                    }
+                }
+            </div>
+        }
+        <div class="hint">Fields accept variables too, e.g. {ssid}.</div>
+    }
+
+    @if (Node.Value.Contains('{') || (Node.Is2D && Node.Content != "text"))
+    {
+        <div class="hint">Encodes: <span class="mono-out">@Ed.ResolveText(Node.Value)</span></div>
+    }
+    @if (Ed.BarcodeError(Node) is { } err)
     {
         <div class="warn">@err</div>
     }
@@ -60,6 +123,25 @@
 
     static string EccTip(EccLevel l) => l switch { EccLevel.L => "7% recoverable", EccLevel.M => "15% recoverable", EccLevel.Q => "25% recoverable", _ => "30% recoverable" };
 
+    string Get(string key) => Node.Fields?.GetValueOrDefault(key) ?? "";
+
+    void Set(string key, string? value) => Ed.Mutate(() =>
+    {
+        (Node.Fields ??= new())[key] = value ?? "";
+        Node.Value = CodeContent.Compose(Node);
+    }, Key);
+
+    void SetContent(ChangeEventArgs e) => Ed.Mutate(() =>
+    {
+        var previous = Node.Content;
+        Node.Content = e.Value?.ToString() ?? "text";
+        if (Node.Content == "text") return;
+        Node.Fields ??= new();
+        // carry a plain URL over into the URL form
+        if (Node.Content == "url" && previous == "text" && !Node.Fields.ContainsKey("url")) Node.Fields["url"] = Node.Value;
+        Node.Value = CodeContent.Compose(Node);
+    });
+
     void SetFormat(ChangeEventArgs e)
     {
         var f = Enum.Parse<CodeFormat>(e.Value!.ToString()!);
@@ -69,6 +151,7 @@
             // swap in a sample when the current value is just the previous format's sample
             if (Node.Value == Editor.SampleValue(Node.Format) || string.IsNullOrEmpty(Node.Value)) Node.Value = Editor.SampleValue(f);
             Node.Format = f;
+            if (!Node.Is2D) Node.Content = "text";
             double cx = Node.Cx;
             if (Node.Is2D && f != CodeFormat.Pdf417) Node.W = Node.H;
             else if (was2D && !Node.Is2D || f == CodeFormat.Pdf417) Node.W = Math.Max(Node.W, Node.H * 2.4);

@@ -84,7 +84,7 @@
     };
 
     // Print preview: the 1-bit raster, with everything outside the printable window tinted.
-    LM.printPreview = async (frame, x0, y0, w, h) => {
+    LM.printPreview = async (frame, rects) => {
         const url = await LM.toPng(frame, true, 0);
         const img = new Image();
         await new Promise((res) => { img.onload = res; img.src = url; });
@@ -93,7 +93,9 @@
         const ctx = c.getContext('2d');
         ctx.drawImage(img, 0, 0);
         ctx.fillStyle = 'rgba(229, 69, 11, .28)';
-        ctx.beginPath(); ctx.rect(0, 0, c.width, c.height); ctx.rect(x0, y0, w, h); ctx.fill('evenodd');
+        ctx.beginPath(); ctx.rect(0, 0, c.width, c.height);
+        for (let i = 0; i + 3 < rects.length; i += 4) ctx.rect(rects[i], rects[i + 1], rects[i + 2], rects[i + 3]);
+        ctx.fill("evenodd");
         return c.toDataURL('image/png');
     };
 })();

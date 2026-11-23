@@ -2,42 +2,168 @@ using LabelMaker.Models;
 
 namespace LabelMaker.Services;
 
-// Factories for new objects, sized to suit the current tape.
+// Creation tools: pick one in the rail, then drag on the canvas (or click for a default size).
 public sealed partial class Editor
 {
-    public void AddText(string text = "Label")
+    /// <summary>
+    /// The armed creation tool, or null for the selection tool. One of "text",
+    /// "shape:Kind[:preset]", "code:Format", "image", "cut:Half", "cut:Full".
+    /// </summary>
+    public string? Tool { get; private set; }
+
+    (string AssetId, double Aspect)? _pendingImage;
+
+    public void SetTool(string? tool)
     {
-        double pt = Math.Max(4, Math.Round(UsableHeight * 1.25 * 2) / 2);
-        var family = Settings.RecentFonts.FirstOrDefault() ?? "Inter";
-        _ = LoadFont(family); // metrics settle through OnFontsLoaded once the face arrives
-        var node = new TextNode { Text = text, FontSize = pt, FontFamily = family, Bold = true };
-        Remeasure(node);
-        Add(node);
-        TextFocusRequested?.Invoke();
+        Tool = tool == Tool ? null : tool;
+        if (Tool != "image") _pendingImage = null;
+        Selection.Clear();
+        Refresh();
     }
 
-    public void AddShape(ShapeKind kind)
+    /// <summary>Arm the image tool with a picked file; the next drag places it.</summary>
+    public void SetImageTool(string dataUrl, double pxW, double pxH)
     {
+        _pendingImage = (AddAsset(dataUrl), pxW / Math.Max(1, pxH));
+        Tool = "image";
+        Selection.Clear();
+        Sync();
+        Refresh();
+    }
+
+    /// <summary>Aspect ratio (w/h) the armed tool is locked to, if any.</summary>
+    double? ToolAspect => Tool switch
+    {
+        "image" => _pendingImage?.Aspect,
+        "code:QrCode" or "code:DataMatrix" or "code:Aztec" => 1,
+        _ => null,
+    };
+
+    /// <summary>A new object for the armed tool at its default size.</summary>
+    Node? MakeNode()
+    {
+        var parts = (Tool ?? "").Split(':');
         double h = Math.Max(2, Math.Round(UsableHeight * 0.8, 1));
-        var s = new ShapeNode { Kind = kind, H = h, W = h };
-        switch (kind)
+        switch (parts[0])
         {
-            case ShapeKind.Rect: s.W = Math.Round(h * 1.8, 1); break;
-            case ShapeKind.Arrow: s.W = Math.Round(h * 1.6, 1); s.H = Math.Round(h * 0.8, 1); s.Fill = Ink.Black; s.Stroke = Ink.None; break;
-            case ShapeKind.Line: s.W = Math.Min(24, Math.Max(8, Doc.WidthMm * 0.4)); s.H = 1; break;
-            case ShapeKind.Star: s.Fill = Ink.Black; s.Stroke = Ink.None; break;
-            case ShapeKind.Polygon: s.Sides = 6; break;
+            case "text":
+            {
+                var family = Settings.RecentFonts.FirstOrDefault() ?? "Inter";
+                _ = LoadFont(family); // metrics settle through OnFontsLoaded once the face arrives
+                var t = new TextNode { Text = "Text", FontSize = Math.Max(4, Math.Round(UsableHeight * 1.25 * 2) / 2), FontFamily = family, Bold = true };
+                Remeasure(t);
+                return t;
+            }
+            case "shape" when Enum.TryParse<ShapeKind>(parts[1], out var kind):
+            {
+                var s = new ShapeNode { Kind = kind, H = h, W = h };
+                switch (kind)
+                {
+                    case ShapeKind.Rect: s.W = Math.Round(h * 1.8, 1); break;
+                    case ShapeKind.Line: s.W = Math.Min(24, Math.Max(8, Doc.WidthMm * 0.4)); s.H = 1; break;
+                    case ShapeKind.Arrow or ShapeKind.DoubleArrow or ShapeKind.Chevron:
+                        s.W = Math.Round(h * 1.6, 1); s.H = Math.Round(h * 0.8, 1); s.Fill = Ink.Black; s.Stroke = Ink.None; break;
+                    case ShapeKind.Parallelogram or ShapeKind.Trapezoid or ShapeKind.Bubble: s.W = Math.Round(h * 1.5, 1); break;
+                    case ShapeKind.Semicircle: s.W = Math.Round(h * 1.6, 1); s.H = Math.Round(h * 0.8, 1); break;
+                    case ShapeKind.Star or ShapeKind.Heart or ShapeKind.Check or ShapeKind.Cross: s.Fill = Ink.Black; s.Stroke = Ink.None; break;
+                }
+                // presets: "shape:Polygon:6", "shape:Rect:round", "shape:Rect:pill", "shape:Rect:square"
+                if (parts.Length > 2)
+                {
+                    if (int.TryParse(parts[2], out var sides)) s.Sides = sides;
+                    else if (parts[2] == "round") s.CornerRadius = Math.Round(h * 0.2, 1);
+                    else if (parts[2] == "pill") s.CornerRadius = 100;
+                    else if (parts[2] == "square") s.W = h;
+                }
+                else if (kind == ShapeKind.Polygon) s.Sides = 6;
+                return s;
+            }
+            case "code" when Enum.TryParse<CodeFormat>(parts[1], out var format):
+            {
+                double ch = Math.Max(3, Math.Round(UsableHeight, 1));
+                var b = new BarcodeNode { Format = format, Value = SampleValue(format), H = ch, W = ch };
+                if (!b.Is2D) { b.W = Math.Min(36, Math.Max(18, Doc.WidthMm * 0.5)); b.ShowText = ch >= 8; }
+                else if (format == CodeFormat.Pdf417) b.W = ch * 2.4;
+                return b;
+            }
+            case "image" when _pendingImage is { } img:
+            {
+                double ih = Math.Max(3, UsableHeight);
+                return new ImageNode { AssetId = img.AssetId, H = ih, W = ih * img.Aspect };
+            }
         }
-        Add(s);
+        return null;
     }
 
-    public void AddBarcode(CodeFormat format)
+    /// <summary>The box being dragged out, honouring Shift (square) and the tool's aspect lock.</summary>
+    Rect CreateRect(double wx, double wy, bool shift)
     {
-        double h = Math.Max(3, Math.Round(UsableHeight, 1));
-        var b = new BarcodeNode { Format = format, Value = SampleValue(format), H = h, W = h };
-        if (!b.Is2D) { b.W = Math.Min(40, Math.Max(20, Doc.WidthMm * 0.6)); b.ShowText = h >= 8; }
-        else if (format == CodeFormat.Pdf417) b.W = h * 2.4;
-        Add(b);
+        double dx = wx - _wx0, dy = wy - _wy0;
+        double? aspect = ToolAspect ?? (shift ? 1 : null);
+        if (aspect is { } a && Tool != "shape:Line")
+        {
+            double w = Math.Max(Math.Abs(dx), Math.Abs(dy) * a);
+            dx = Math.Sign(dx == 0 ? 1 : dx) * w;
+            dy = Math.Sign(dy == 0 ? 1 : dy) * w / a;
+        }
+        return new Rect(Math.Min(_wx0, _wx0 + dx), Math.Min(_wy0, _wy0 + dy), Math.Abs(dx), Math.Abs(dy));
+    }
+
+    void FinishCreate(double wx, double wy, bool shift, bool dragged)
+    {
+        var node = MakeNode();
+        var tool = Tool;
+        Tool = null;
+        _pendingImage = null;
+        if (node is null) { Refresh(); return; }
+
+        if (!dragged)
+        {
+            node.X = _wx0 - node.W / 2;
+            node.Y = _wy0 - node.H / 2;
+        }
+        else if (node is ShapeNode { Kind: ShapeKind.Line })
+        {
+            double ang = Math.Atan2(wy - _wy0, wx - _wx0) * 180 / Math.PI;
+            if (shift) ang = Math.Round(ang / 15) * 15;
+            else if (Math.Abs(ang - Math.Round(ang / 90) * 90) < 2) ang = Math.Round(ang / 90) * 90;
+            double len = Math.Max(0.5, Math.Sqrt((wx - _wx0) * (wx - _wx0) + (wy - _wy0) * (wy - _wy0)));
+            var (ex, ey) = Geo.Rot(len, 0, ang);
+            node.W = len;
+            node.X = _wx0 + ex / 2 - len / 2;
+            node.Y = _wy0 + ey / 2 - node.H / 2;
+            node.Rotation = Geo.Norm(ang);
+        }
+        else
+        {
+            var r = CreateRect(wx, wy, shift);
+            node.X = r.X; node.Y = r.Y;
+            node.W = Math.Max(0.5, r.W); node.H = Math.Max(0.5, r.H);
+            // a dragged-out text box has a fixed width and wraps
+            if (node is TextNode t) t.Mode = TextMode.Wrap;
+        }
+
+        Mutate(() =>
+        {
+            ScopeList.Add(node);
+            Select(node);
+        });
+        if (node is TextNode text) BeginEdit(text, selectAll: true);
+    }
+
+    /// <summary>Insert an object without the tool flow (paste, drop): beside existing content, or centred when full.</summary>
+    public void Add(Node node)
+    {
+        Mutate(() =>
+        {
+            var area = MarginRect;
+            node.Y = area.Cy - node.H / 2;
+            double right = Geo.Bounds(Doc.Nodes.Where(n => n.Visible)) is { } used ? Math.Max(area.X, used.R + 1.5) : area.X;
+            if (Doc.AutoWidth || right + node.W <= area.R + 0.01) node.X = right;
+            else node.X = Math.Max(area.X, area.Cx - node.W / 2);
+            ScopeList.Add(node);
+            Select(node);
+        });
     }
 
     public static string SampleValue(CodeFormat f) => f switch
@@ -52,7 +178,7 @@ public sealed partial class Editor
         _ => "https://example.com",
     };
 
-    /// <summary>Place an image; (sx, sy) is a canvas position or negative to centre it.</summary>
+    /// <summary>Place a dropped or pasted image; (sx, sy) is a canvas position or negative to auto-place.</summary>
     public void AddImage(string dataUrl, double pxW, double pxH, double sx = -1, double sy = -1)
     {
         double h = Math.Max(3, UsableHeight), w = h * pxW / Math.Max(1, pxH);
@@ -75,4 +201,28 @@ public sealed partial class Editor
         node.W = node.H * pxW / Math.Max(1, pxH);
         node.X = cx - node.W / 2; node.Y = cy - node.H / 2;
     });
+
+    // ---- inline text editing -------------------------------------------------------------
+
+    public string? EditingId { get; private set; }
+    public bool EditSelectAll { get; private set; }
+    public TextNode? EditingNode => Find(EditingId) as TextNode;
+
+    public void BeginEdit(TextNode node, bool selectAll = false)
+    {
+        EditingId = node.Id;
+        EditSelectAll = selectAll;
+        Select(node);
+        Refresh();
+    }
+
+    public void EndEdit()
+    {
+        if (EditingId is null) return;
+        var node = EditingNode;
+        EditingId = null;
+        // an emptied text box is just clutter
+        if (node is not null && string.IsNullOrWhiteSpace(node.Text)) { Select(node); DeleteSelection(); }
+        else Refresh();
+    }
 }

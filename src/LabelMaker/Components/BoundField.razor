@@ -1,0 +1,76 @@
+@inject Editor Ed
+@inject Shell Shell
+
+@* A numeric property of an object. Type a number, or an expression such as
+   "Title.right + 2" or "gap * 2" to keep it tied to variables and other objects. *@
+<label class="num @(Disabled ? "off" : "") @(Expression is not null ? "bound" : "")" title="@Tip">
+    @if (Label is not null)
+    {
+        <span class="num-l">@Label</span>
+    }
+    <input @key="_rev" value="@Display" spellcheck="false" autocomplete="off" disabled="@Disabled"
+           @onchange="Commit" @onkeydown="KeyDown" />
+    @if (Unit is not null && Expression is null)
+    {
+        <span class="num-u">@Unit</span>
+    }
+</label>
+
+@code {
+    [Parameter, EditorRequired] public Node Node { get; set; } = default!;
+    [Parameter, EditorRequired] public string Prop { get; set; } = "";
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? Unit { get; set; }
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public double Min { get; set; } = double.MinValue;
+    [Parameter] public double Max { get; set; } = double.MaxValue;
+    [Parameter] public double Step { get; set; } = 1;
+    [Parameter] public int Decimals { get; set; } = 2;
+    [Parameter] public bool Disabled { get; set; }
+    /// <summary>Custom setter (already wrapped in an undo step) for properties that need more than assignment.</summary>
+    [Parameter] public Action<double>? Apply { get; set; }
+
+    int _rev;
+
+    string? Expression => Editor.BindingOf(Node, Prop);
+    double Value => Editor.GetNumber(Node, Prop);
+    string Display => Expression is { } e ? "=" + e : Math.Round(Value, Decimals).ToString("0." + new string('#', Decimals), CultureInfo.InvariantCulture);
+    string Tip => (Title is null ? "" : Title + ". ") + (Expression is null
+        ? "Type a number, or an expression like  Title.right + 2"
+        : $"Bound: currently {Math.Round(Value, Decimals).ToString(CultureInfo.InvariantCulture)}{Unit}. Type a plain number to unbind.");
+
+    void Commit(ChangeEventArgs e)
+    {
+        var raw = (e.Value?.ToString() ?? "").Trim();
+        _rev++;
+        if (raw.Length == 0) return;
+        if (double.TryParse(raw.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && double.IsFinite(v))
+        {
+            Ed.SetBinding(Node, Prop, null);
+            Set(v, force: true);
+            return;
+        }
+        var expr = raw.TrimStart('=').Trim();
+        if (!Ed.TryNumber(expr, out _))
+        {
+            Shell.Toast($"“{expr}” does not evaluate to a number.");
+            return;
+        }
+        Ed.Mutate(() => Ed.SetBinding(Node, Prop, expr));
+    }
+
+    void KeyDown(KeyboardEventArgs e)
+    {
+        if (Expression is not null || e.Key is not ("ArrowUp" or "ArrowDown")) return;
+        _rev++;
+        Set(Value + Step * (e.ShiftKey ? 10 : 1) * (e.Key == "ArrowUp" ? 1 : -1), force: false);
+    }
+
+    void Set(double v, bool force)
+    {
+        v = Math.Clamp(Math.Round(v, Decimals + 2), Min, Max);
+        if (v == Value && !force) return;
+        if (Apply is not null) Apply(v);
+        else Ed.Mutate(() => Editor.SetNumber(Node, Prop, v));
+    }
+}

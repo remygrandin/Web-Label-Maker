@@ -125,44 +125,75 @@ public static class Brother
     }
 
     /// <summary>
-    /// Build the raster job. <paramref name="bits"/> holds one byte per dot (1 = black),
-    /// row-major, <paramref name="width"/> along the tape and <paramref name="height"/> across it.
+    /// Split a rasterised label of <paramref name="width"/> dots at the given cut positions.
+    /// Each piece is printed as its own page and loses the printer's feed margin at both ends.
     /// </summary>
-    public static byte[] BuildJob(PrinterModel model, MediaInfo media, TapeGeometry g, PrintOptions o, byte[] bits, int width, int height)
+    public static List<(int X0, int Lines)> Pieces(PrinterModel model, PrintOptions o, int width, IEnumerable<int> cuts)
     {
-        var (x0, y0, lines, pins) = PrintWindow(model, g, o, width, height);
-        if (lines < 1) throw new InvalidOperationException("The label is shorter than the printer's feed margins.");
-        int lineBytes = model.Pins / 8, feed = FeedDots(model, o), copies = Math.Clamp(o.Copies, 1, 99);
-        var job = new List<byte>(lines * 8 * copies + 64);
+        int feed = FeedDots(model, o);
+        var edges = new List<int> { 0 };
+        edges.AddRange(cuts.Where(c => c > 0 && c < width).Distinct().OrderBy(c => c));
+        edges.Add(width);
+        var pieces = new List<(int, int)>();
+        for (int i = 0; i + 1 < edges.Count; i++)
+        {
+            int lines = edges[i + 1] - edges[i] - 2 * feed;
+            if (lines < MinLines)
+                throw new InvalidOperationException(edges.Count > 2
+                    ? $"Piece {i + 1} is too short to print: allow at least {Math.Ceiling((MinLines + 2 * feed) * 25.4 / model.Dpi)} mm between cuts."
+                    : "The label is too short for this printer.");
+            pieces.Add((edges[i] + feed, lines));
+        }
+        return pieces;
+    }
+
+    /// <summary>Shortest printable page, in raster lines (Brother: 34 at 180 dpi).</summary>
+    const int MinLines = 34;
+
+    /// <summary>One printed page: a window of a 1-bit raster, and what happens to the tape after it.</summary>
+    /// <param name="Bits">One byte per dot (1 = black), row-major; Width runs along the tape, Height across it.</param>
+    /// <param name="Cut">Full cut after this page.</param>
+    /// <param name="Half">Half cut after this page (tape only, backing intact).</param>
+    public sealed record PrintPage(byte[] Bits, int Width, int Height, int X0, int Lines, bool Cut, bool Half);
+
+    /// <summary>Build the raster job for a sequence of pages.</summary>
+    public static byte[] BuildJob(PrinterModel model, MediaInfo media, TapeGeometry g, PrintOptions o, IReadOnlyList<PrintPage> pages)
+    {
+        if (pages.Count == 0) throw new InvalidOperationException("Nothing to print.");
+        int lineBytes = model.Pins / 8, feed = FeedDots(model, o), pins = g.PrintPins;
+        var job = new List<byte>(pages.Sum(p => p.Lines) * (lineBytes + 3) + 64 * pages.Count);
         var line = new byte[lineBytes];
 
-        for (int copy = 0; copy < copies; copy++)
+        for (int n = 0; n < pages.Count; n++)
         {
-            bool last = copy == copies - 1;
+            var page = pages[n];
+            bool last = n == pages.Count - 1;
+            int lines = page.Lines, width = page.Width, height = page.Height;
+            int y0 = (int)Math.Round((height - pins) / 2.0);
             job.AddRange([0x1B, 0x69, 0x61, 0x01]);              // raster mode
             job.AddRange([0x1B, 0x69, 0x21, 0x00]);              // automatic status notification on
-            int page = model.LastPageFlag ? (last ? 2 : copy == 0 ? 0 : 1) : (copy == 0 ? 0 : 1);
+            int index = model.LastPageFlag ? (last ? 2 : n == 0 ? 0 : 1) : (n == 0 ? 0 : 1);
             job.AddRange([0x1B, 0x69, 0x7A, 0x84, 0x00, (byte)media.WidthCode, 0x00,
-                (byte)lines, (byte)(lines >> 8), (byte)(lines >> 16), (byte)(lines >> 24), (byte)page, 0x00]);
-            bool cut = o.AutoCut && model.AutoCut;
+                (byte)lines, (byte)(lines >> 8), (byte)(lines >> 16), (byte)(lines >> 24), (byte)index, 0x00]);
+            bool cut = page.Cut && model.AutoCut;
             job.AddRange([0x1B, 0x69, 0x4D, (byte)(cut ? 0x40 : 0x00)]);   // various mode: auto cut
             if (model.CutEveryCmd) job.AddRange([0x1B, 0x69, 0x41, (byte)(cut ? 1 : 0)]); // cut after every label (0 = never)
-            int adv = (o.HalfCut && model.HalfCut ? 0x04 : 0) | (o.Chain ? 0 : 0x08);
+            int adv = (page.Half && model.HalfCut ? 0x04 : 0) | (o.Chain ? 0 : 0x08);
             job.AddRange([0x1B, 0x69, 0x4B, (byte)adv]);          // advanced mode: half cut / no chain printing
             job.AddRange([0x1B, 0x69, 0x64, (byte)feed, (byte)(feed >> 8)]); // feed margin
             job.AddRange([0x4D, (byte)(model.PackBits ? 0x02 : 0x00)]); // TIFF (PackBits) compression, or none
 
             // One raster line per label column, left edge first. Pin p is bit (7 - p % 8)
             // of byte p / 8; the top of the label sits on the first-byte side.
-            for (int x = x0; x < x0 + lines; x++)
+            for (int x = page.X0; x < page.X0 + lines; x++)
             {
                 Array.Clear(line);
                 bool any = false;
                 for (int i = 0; i < pins; i++)
                 {
                     int y = y0 + i, p = g.FirstPin + o.PinOffset + i;
-                    if (y < 0 || y >= height || p < 0 || p >= model.Pins) continue;
-                    if (bits[y * width + x] == 0) continue;
+                    if (y < 0 || y >= height || x < 0 || x >= width || p < 0 || p >= model.Pins) continue;
+                    if (page.Bits[y * width + x] == 0) continue;
                     line[p >> 3] |= (byte)(0x80 >> (p & 7));
                     any = true;
                 }
@@ -176,9 +207,9 @@ public static class Brother
                 int at = job.Count;
                 job.AddRange([0x47, 0, 0]);
                 PackBits(line, job);
-                int n = job.Count - at - 3;
-                job[at + 1] = (byte)n;
-                job[at + 2] = (byte)(n >> 8);
+                int len = job.Count - at - 3;
+                job[at + 1] = (byte)len;
+                job[at + 2] = (byte)(len >> 8);
             }
             job.Add(last ? (byte)0x1A : (byte)0x0C);              // print (and feed on the last page)
         }

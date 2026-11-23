@@ -19,6 +19,17 @@
             <button class="ibtn sm" title="Delete (Del)" @onclick="Ed.DeleteSelection"><Icon Name="trash" /></button>
         </div>
 
+        @if (one is not null)
+        {
+            <div class="sect" style="padding-bottom:10px">
+                <div class="row">
+                    <span class="lbl">Name</span>
+                    <input class="inp fill" spellcheck="false" placeholder="@Editor.DisplayName(one)" value="@one.Name" title="Other objects can refer to this one by name, e.g. {@(one.Name.Length > 0 ? one.Name : "Title").w}"
+                           @onchange="e => Ed.Rename(one, Editor.CleanName(e.Value?.ToString() ?? string.Empty))" />
+                </div>
+            </div>
+        }
+
         <ArrangeSection />
 
         <div class="sect">
@@ -28,15 +39,15 @@
                 bool auto = one is TextNode { Mode: TextMode.Auto };
                 bool line = one is ShapeNode { Kind: ShapeKind.Line };
                 <div class="grid2">
-                    <NumberField Label="X" Unit="mm" Value="one.X" ValueChanged="v => Ed.Mutate(() => one.X = v)" Step="0.5" />
-                    <NumberField Label="Y" Unit="mm" Value="one.Y" ValueChanged="v => Ed.Mutate(() => one.Y = v)" Step="0.5" />
+                    <BoundField Node="one" Prop="X" Label="X" Unit="mm" Step="0.5" />
+                    <BoundField Node="one" Prop="Y" Label="Y" Unit="mm" Step="0.5" />
                 </div>
                 <div class="grid2">
-                    <NumberField Label="W" Unit="mm" Value="one.W" ValueChanged="v => SetSize(one, v, true)" Min="0.3" Step="0.5" Disabled="auto" />
-                    <NumberField Label="H" Unit="mm" Value="one.H" ValueChanged="v => SetSize(one, v, false)" Min="0.3" Step="0.5" Disabled="auto || line" />
+                    <BoundField Node="one" Prop="W" Label="W" Unit="mm" Apply="v => SetSize(one, v, true)" Min="0.3" Step="0.5" Disabled="auto" />
+                    <BoundField Node="one" Prop="H" Label="H" Unit="mm" Apply="v => SetSize(one, v, false)" Min="0.3" Step="0.5" Disabled="auto || line" />
                 </div>
                 <div class="grid2">
-                    <NumberField Label="∠" Unit="°" Value="one.Rotation" ValueChanged="v => Rotate(one, v)" Step="15" Decimals="1" />
+                    <BoundField Node="one" Prop="Rotation" Label="∠" Unit="°" Apply="v => Rotate(one, v)" Step="15" Decimals="1" />
                     <div class="seg fill">
                         <button title="Rotate 90° left" @onclick="() => Rotate(one, one.Rotation - 90)">−90°</button>
                         <button title="Rotate 90° right" @onclick="() => Rotate(one, one.Rotation + 90)">+90°</button>

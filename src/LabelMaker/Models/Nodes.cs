@@ -19,7 +19,11 @@ public enum VAlign { Top, Middle, Bottom }
 public enum Ink { None, Black, White }
 
 [JsonConverter(typeof(JsonStringEnumConverter<ShapeKind>))]
-public enum ShapeKind { Rect, Ellipse, Line, Triangle, Diamond, Polygon, Star, Arrow }
+public enum ShapeKind
+{
+    Rect, Ellipse, Line, Triangle, Diamond, Polygon, Star, Arrow,
+    RightTriangle, Parallelogram, Trapezoid, Cross, Chevron, DoubleArrow, Heart, Bubble, Semicircle, Check,
+}
 
 [JsonConverter(typeof(JsonStringEnumConverter<DashStyle>))]
 public enum DashStyle { Solid, Dashed, Dotted }
@@ -50,6 +54,10 @@ public abstract class Node
     public double W { get; set; } = 10;
     public double H { get; set; } = 10;
     public double Rotation { get; set; }
+    /// <summary>Numeric properties driven by an expression: property name → expression.</summary>
+    public Dictionary<string, string>? Bindings { get; set; }
+
+    public Node Shallow() => (Node)MemberwiseClone();
 
     [JsonIgnore] public double Cx => X + W / 2;
     [JsonIgnore] public double Cy => Y + H / 2;
@@ -106,6 +114,9 @@ public sealed class BarcodeNode : Node
     public bool QuietZone { get; set; } = true;
     /// <summary>Human-readable line under linear codes.</summary>
     public bool ShowText { get; set; } = true;
+    /// <summary>How the value is composed: "text" (free), or "url", "wifi", "vcard", "email", "phone", "sms", "geo" built from <see cref="Fields"/>.</summary>
+    public string Content { get; set; } = "text";
+    public Dictionary<string, string>? Fields { get; set; }
 
     [JsonIgnore]
     public bool Is2D => Format is CodeFormat.QrCode or CodeFormat.DataMatrix or CodeFormat.Aztec or CodeFormat.Pdf417;

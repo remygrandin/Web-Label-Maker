@@ -21,6 +21,7 @@ public sealed class RenderFrame
     public List<GuideLine> Guides { get; set; } = new();
     public List<HandleDot> Handles { get; set; } = new();
     public double[]? Marquee { get; set; }
+    public List<CutMark> Cuts { get; set; } = new();
 }
 
 public sealed record GuideLine(bool V, double Pos);
@@ -67,8 +68,6 @@ public sealed partial class Editor
     public event Action? Changed;
     /// <summary>Document content changed: time to autosave.</summary>
     public event Action? Mutated;
-    /// <summary>The user double-clicked a text object: focus its content field.</summary>
-    public event Action? TextFocusRequested;
     public event Action? SaveRequested;
 
     public bool CanUndo => _undo.Count > 0;
@@ -176,14 +175,20 @@ public sealed partial class Editor
     /// <summary>Push whatever the renderer needs for this document (also used for thumbnails).</summary>
     public void Prepare(LabelDocument doc)
     {
-        foreach (var n in Geo.Walk(doc.Nodes))
+        _evalDoc = doc;
+        try
         {
-            switch (n)
+            ApplyBindings(doc);
+            foreach (var n in Geo.Walk(doc.Nodes))
             {
-                case TextNode { Mode: TextMode.Auto } t: Remeasure(t); break;
-                case BarcodeNode code: Barcodes.Ensure(code, _js); break;
+                switch (n)
+                {
+                    case TextNode { Mode: TextMode.Auto } t: Remeasure(t); break;
+                    case BarcodeNode code: Barcodes.Ensure((BarcodeNode)Resolved(code), _js); break;
+                }
             }
         }
+        finally { _evalDoc = null; }
         foreach (var (id, url) in doc.Assets)
             if (_sentAssets.Add(id)) _js.InvokeVoid("LM.setAsset", id, url);
         if (doc.AutoWidth && Geo.Bounds(doc.Nodes.Where(n => n.Visible)) is { } b)
@@ -192,7 +197,7 @@ public sealed partial class Editor
 
     void Remeasure(TextNode t)
     {
-        var m = _js.Invoke<double[]>("LM.measureText", t);
+        var m = _js.Invoke<double[]>("LM.measureText", (TextNode)Resolved(t));
         double nw = Math.Max(m[0], 0.5) + 2 * t.Padding, nh = Math.Max(m[1], 0.5) + 2 * t.Padding;
         double dw = nw - t.W, dh = nh - t.H;
         if (Math.Abs(dw) < 1e-4 && Math.Abs(dh) < 1e-4) return;
@@ -214,12 +219,15 @@ public sealed partial class Editor
         public double Dpi { get; set; }
         public Margins Margins { get; set; } = new();
         public List<Node> Nodes { get; set; } = new();
+        public List<Variable> Variables { get; set; } = new();
+        public Counter Counter { get; set; } = new();
+        public List<CutMark> Cuts { get; set; } = new();
     }
 
     string Snapshot() => DocJson.Write(new DocState
     {
         MediaId = Doc.MediaId, WidthMm = Doc.WidthMm, HeightMm = Doc.HeightMm, AutoWidth = Doc.AutoWidth,
-        Dpi = Doc.Dpi, Margins = Doc.Margins, Nodes = Doc.Nodes,
+        Dpi = Doc.Dpi, Margins = Doc.Margins, Nodes = Doc.Nodes, Variables = Doc.Variables, Counter = Doc.Counter, Cuts = Doc.Cuts,
     });
 
     void Restore(string snapshot)
@@ -227,6 +235,7 @@ public sealed partial class Editor
         var s = DocJson.Read<DocState>(snapshot)!;
         Doc.MediaId = s.MediaId; Doc.WidthMm = s.WidthMm; Doc.HeightMm = s.HeightMm; Doc.AutoWidth = s.AutoWidth;
         Doc.Dpi = s.Dpi; Doc.Margins = s.Margins; Doc.Nodes = s.Nodes;
+        Doc.Variables = s.Variables; Doc.Counter = s.Counter; Doc.Cuts = s.Cuts;
         Selection.RemoveAll(id => Find(id) is null);
         if (Find(ScopeId) is null) ScopeId = null;
     }
@@ -342,6 +351,7 @@ public sealed partial class Editor
             f.Scope = new Frame(sb.Cx, sb.Cy, sb.W + 6 / Zoom, sb.H + 6 / Zoom, 0);
         if (_drag == Drag.None && Find(_hoverId) is { } hov && !Selection.Contains(hov.Id) && Geo.Bounds(hov) is { } hb)
             f.Hover = hov is GroupNode ? new Frame(hb.Cx, hb.Cy, hb.W, hb.H, 0) : new Frame(hov.Cx, hov.Cy, hov.W, hov.H, hov.Rotation);
+        if (EditingId is not null) f.Items.RemoveAll(n => n.Id == EditingId);
         f.Guides = _guides;
         if (_drag is Drag.None or Drag.Resize or Drag.Rotate or Drag.LineEnd)
             f.Handles = Handles().Select(h => new HandleDot(h.Sx, h.Sy, h.Kind != HandleKind.Resize)).ToList();
@@ -350,11 +360,19 @@ public sealed partial class Editor
     }
 
     /// <summary>A frame holding just the document content (no editor overlays).</summary>
-    public RenderFrame BuildFrame(LabelDocument doc) => new()
+    public RenderFrame BuildFrame(LabelDocument doc)
     {
-        Zoom = 1, DocW = doc.WidthMm, DocH = doc.HeightMm, Dpi = doc.Dpi, Margins = doc.Margins,
-        Items = (doc == Doc ? VisibleLeaves() : VisibleLeavesOf(doc.Nodes)).Select(l => l.Node).ToList(),
-    };
+        _evalDoc = doc;
+        try
+        {
+            return new RenderFrame
+            {
+                Zoom = 1, DocW = doc.WidthMm, DocH = doc.HeightMm, Dpi = doc.Dpi, Margins = doc.Margins, Cuts = doc.Cuts,
+                Items = (doc == Doc ? VisibleLeaves() : VisibleLeavesOf(doc.Nodes)).Select(l => Resolved(l.Node)).ToList(),
+            };
+        }
+        finally { _evalDoc = null; }
+    }
 
     static IEnumerable<(Node Node, bool Locked)> VisibleLeavesOf(List<Node> list)
     {

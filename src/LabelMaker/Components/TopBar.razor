@@ -1,4 +1,5 @@
 @inherits EditorComponent
+@inject Library Lib
 
 <header class="topbar">
     <div class="brand"><Icon Name="tape" /></div>
@@ -7,10 +8,9 @@
     <span class="top-sep"></span>
     <input class="docname" value="@Ed.Doc.Name" spellcheck="false" title="Label name"
            @onchange="e => Rename(e.Value?.ToString())" />
-    @if (Ed.Dirty)
-    {
-        <span class="dirty-dot" title="Changes not yet saved to the library (autosaved locally)"></span>
-    }
+    <span class="autosave @(Lib.Pending ? "pending" : "")" title="@SaveTip">
+        <i></i>@(Lib.Pending ? "Saving…" : Lib.SavedAt is { } at ? $"Autosaved {at:HH:mm:ss}" : "Autosave on")@(Lib.InLibrary ? " · in library" : "")
+    </span>
     <span class="top-spacer"></span>
     <button class="ibtn" title="Undo (Ctrl+Z)" disabled="@(!Ed.CanUndo)" @onclick="Ed.Undo"><Icon Name="undo" /></button>
     <button class="ibtn" title="Redo (Ctrl+Y)" disabled="@(!Ed.CanRedo)" @onclick="Ed.Redo"><Icon Name="redo" /></button>
@@ -22,6 +22,22 @@
 @code {
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public RenderFragment? Actions { get; set; }
+
+    string SaveTip => Lib.InLibrary
+        ? "Every change is saved automatically, both as the working label and to its entry in the library."
+        : "Every change is saved automatically in this browser. Use File → Save to library to keep it as a named label.";
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Lib.StateChanged += Update;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        Lib.StateChanged -= Update;
+    }
 
     string ThemeIcon => Shell.Settings.Theme switch { "light" => "sun", "dark" => "moon", _ => "system" };
 

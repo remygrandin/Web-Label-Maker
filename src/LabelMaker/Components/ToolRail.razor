@@ -2,46 +2,106 @@
 @inject IJSRuntime JS
 
 <nav class="rail">
-    <button class="tool" data-tip="Text" @onclick="() => Ed.AddText()"><Icon Name="text" /></button>
+    <button class="tool @(Ed.Tool is null ? "on" : "")" data-tip="Select and move (Esc)" @onclick="() => Ed.SetTool(null)"><Icon Name="cursor" /></button>
     <div class="rule"></div>
-    <button class="tool" data-tip="Rectangle" @onclick="() => Ed.AddShape(ShapeKind.Rect)"><Icon Name="rect" /></button>
-    <button class="tool" data-tip="Ellipse" @onclick="() => Ed.AddShape(ShapeKind.Ellipse)"><Icon Name="ellipse" /></button>
-    <button class="tool" data-tip="Line" @onclick="() => Ed.AddShape(ShapeKind.Line)"><Icon Name="line" /></button>
+    <button class="tool @On("text")" data-tip="Text: click, or drag out a box" @onclick="@(() => Arm("text"))"><Icon Name="text" /></button>
+
     <div style="position:relative">
-        <button class="tool @(_shapes ? "on" : "")" data-tip="More shapes" @onclick="() => _shapes = !_shapes"><Icon Name="shapes" /></button>
-        @if (_shapes)
+        <button class="tool @(Ed.Tool?.StartsWith("shape:") == true ? "on" : "")" data-tip="Shapes" @onclick="() => Toggle(1)"><Icon Name="@_shapeIcon" /></button>
+        @if (_fly == 1)
         {
-            <div class="menu-scrim" @onclick="() => _shapes = false"></div>
+            <div class="menu-scrim" @onclick="() => _fly = 0"></div>
             <div class="flyout" style="top:0">
-                @foreach (var (kind, icon) in More)
+                @foreach (var (tool, icon, label) in Shapes)
                 {
-                    <button class="tool" title="@kind" @onclick="() => { _shapes = false; Ed.AddShape(kind); }"><Icon Name="@icon" /></button>
+                    <button class="tool" title="@label" @onclick="() => { _shapeIcon = icon; Arm(tool); }"><Icon Name="@icon" /></button>
+                }
+            </div>
+        }
+    </div>
+
+    <button class="tool @On("image")" data-tip="Image: pick a file, then drag to place (or drop / paste one)" @onclick="PickImage"><Icon Name="image" /></button>
+    <div class="rule"></div>
+
+    <div style="position:relative">
+        <button class="tool @(Is2D ? "on" : "")" data-tip="2D code" @onclick="() => Toggle(2)"><Icon Name="qr" /></button>
+        @if (_fly == 2)
+        {
+            <div class="menu-scrim" @onclick="() => _fly = 0"></div>
+            <div class="menu" style="left:44px;top:0">
+                <div class="menu-head">2D codes</div>
+                @foreach (var f in TwoD)
+                {
+                    <button class="menu-item" @onclick="@(() => Arm("code:" + f))"><Icon Name="qr" />@CodeNames.Of(f)</button>
+                }
+            </div>
+        }
+    </div>
+    <div style="position:relative">
+        <button class="tool @(Is1D ? "on" : "")" data-tip="1D barcode" @onclick="() => Toggle(3)"><Icon Name="barcode" /></button>
+        @if (_fly == 3)
+        {
+            <div class="menu-scrim" @onclick="() => _fly = 0"></div>
+            <div class="menu" style="left:44px;top:0">
+                <div class="menu-head">Linear barcodes</div>
+                @foreach (var f in Enum.GetValues<CodeFormat>().Except(TwoD))
+                {
+                    <button class="menu-item" @onclick="@(() => Arm("code:" + f))"><Icon Name="barcode" />@CodeNames.Of(f)</button>
                 }
             </div>
         }
     </div>
     <div class="rule"></div>
-    <button class="tool" data-tip="Image (or drop / paste one)" @onclick="PickImage"><Icon Name="image" /></button>
-    <div class="rule"></div>
-    <button class="tool" data-tip="QR code" @onclick="() => Ed.AddBarcode(CodeFormat.QrCode)"><Icon Name="qr" /></button>
-    <button class="tool" data-tip="Barcode" @onclick="() => Ed.AddBarcode(CodeFormat.Code128)"><Icon Name="barcode" /></button>
+
+    <div style="position:relative">
+        <button class="tool @(Ed.Tool?.StartsWith("cut:") == true ? "on" : "")" data-tip="Cut mark: click on the label where the tape should be cut" @onclick="() => Toggle(4)"><Icon Name="cut" /></button>
+        @if (_fly == 4)
+        {
+            <div class="menu-scrim" @onclick="() => _fly = 0"></div>
+            <div class="menu" style="left:44px;top:0">
+                <div class="menu-head">Cut marks</div>
+                <button class="menu-item" @onclick="@(() => Arm("cut:Full"))"><Icon Name="cut" />Full cut</button>
+                <button class="menu-item" @onclick="@(() => Arm("cut:Half"))"><Icon Name="half-cut" />Half cut (backing stays)</button>
+            </div>
+        }
+    </div>
 </nav>
 
 @code {
+    int _fly;
+    string _shapeIcon = "shapes";
 
-    bool _shapes;
+    static readonly CodeFormat[] TwoD = [CodeFormat.QrCode, CodeFormat.DataMatrix, CodeFormat.Aztec, CodeFormat.Pdf417];
 
-    static readonly (ShapeKind, string)[] More =
+    static readonly (string Tool, string Icon, string Label)[] Shapes =
     [
-        (ShapeKind.Triangle, "triangle"), (ShapeKind.Diamond, "diamond"), (ShapeKind.Polygon, "polygon"),
-        (ShapeKind.Star, "star"), (ShapeKind.Arrow, "arrow"),
+        ("shape:Rect", "rect", "Rectangle"), ("shape:Rect:square", "square", "Square"), ("shape:Rect:round", "round-rect", "Rounded rectangle"), ("shape:Rect:pill", "pill", "Pill"),
+        ("shape:Ellipse", "ellipse", "Ellipse / circle"), ("shape:Semicircle", "semicircle", "Semicircle"), ("shape:Line", "line", "Line"), ("shape:Cross", "cross", "Cross"),
+        ("shape:Triangle", "triangle", "Triangle"), ("shape:RightTriangle", "right-triangle", "Right triangle"), ("shape:Diamond", "diamond", "Diamond"), ("shape:Parallelogram", "parallelogram", "Parallelogram"),
+        ("shape:Trapezoid", "trapezoid", "Trapezoid"), ("shape:Polygon:5", "polygon", "Pentagon"), ("shape:Polygon:6", "hexagon", "Hexagon"), ("shape:Polygon:8", "octagon", "Octagon"),
+        ("shape:Star", "star", "Star"), ("shape:Heart", "heart", "Heart"), ("shape:Arrow", "arrow", "Arrow"), ("shape:DoubleArrow", "double-arrow", "Double arrow"),
+        ("shape:Chevron", "chevron", "Chevron"), ("shape:Bubble", "bubble", "Speech bubble"), ("shape:Check", "tick", "Check mark"),
     ];
+
+    bool Is2D => Ed.Tool?.StartsWith("code:") == true && TwoD.Any(f => Ed.Tool == "code:" + f);
+    bool Is1D => Ed.Tool?.StartsWith("code:") == true && !Is2D;
+
+    string On(string tool) => Ed.Tool == tool ? "on" : "";
+
+    void Toggle(int fly) => _fly = _fly == fly ? 0 : fly;
+
+    void Arm(string tool)
+    {
+        _fly = 0;
+        if (Ed.Tool != tool) Ed.SetTool(tool);
+    }
 
     sealed record Picked(string DataUrl, double W, double H, string Name);
 
     async Task PickImage()
     {
+        _fly = 0;
         var img = await JS.InvokeAsync<Picked?>("LM.pickImage");
-        if (img is not null) Ed.AddImage(img.DataUrl, img.W, img.H);
+        if (img is not null) Ed.SetImageTool(img.DataUrl, img.W, img.H);
     }
 }

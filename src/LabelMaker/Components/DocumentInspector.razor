@@ -15,17 +15,18 @@
     </div>
     <div class="row">
         <span class="lbl">Length</span>
-        <div class="fill">
-            <NumberField Unit="mm" Value="doc.WidthMm" Min="5" Max="1000" Step="1" Decimals="1" Disabled="doc.AutoWidth"
-                         ValueChanged="v => { Ed.Mutate(() => doc.WidthMm = v); Ed.ZoomToFit(); }" />
+        <div class="seg fill">
+            <button class="@(doc.AutoWidth ? "" : "on")" title="The label keeps the length you set" @onclick="() => SetAuto(false)">Fixed</button>
+            <button class="@(doc.AutoWidth ? "on" : "")" title="The label grows and shrinks to fit its content" @onclick="() => SetAuto(true)">Auto</button>
         </div>
     </div>
     <div class="row">
         <span class="lbl"></span>
-        <label class="check">
-            <input type="checkbox" checked="@doc.AutoWidth" @onchange="e => Ed.Mutate(() => doc.AutoWidth = (bool)e.Value!)" /><i></i>
-            Fit length to content
-        </label>
+        <div class="fill">
+            <NumberField Unit="mm" Value="doc.WidthMm" Min="5" Max="1000" Step="1" Decimals="1" Disabled="doc.AutoWidth"
+                         Title="@(doc.AutoWidth ? "Set by the content, plus the right margin" : "Label length")"
+                         ValueChanged="v => { Ed.Mutate(() => doc.WidthMm = v); Ed.ZoomToFit(); }" />
+        </div>
     </div>
     <div class="hint">
         @media.Label tape prints a @media.PrintableMm.ToString("0.0", CultureInfo.InvariantCulture) mm band.
@@ -47,15 +48,82 @@
         <NumberField Label="T" Unit="mm" Value="m.T" Min="0" Max="20" Step="0.25" ValueChanged="v => Ed.Mutate(() => m.T = v)" />
         <NumberField Label="B" Unit="mm" Value="m.B" Min="0" Max="20" Step="0.25" ValueChanged="v => Ed.Mutate(() => m.B = v)" />
     </div>
-    <div class="hint">Margins are guides. The top and bottom defaults mark the strip the print head cannot reach.</div>
 </div>
 
-<div class="empty">
-    Nothing selected. Add text, shapes, images or codes from the left rail, or drop an image on the label.
+<div class="sect">
+    <div class="sect-title">
+        Variables
+        <span class="grow"></span>
+        <button class="btn sm" @onclick="Ed.AddVariable"><Icon Name="plus" />Add</button>
+    </div>
+    @foreach (var v in doc.Variables)
+    {
+        var item = v;
+        <div class="row">
+            <input class="inp mono" style="width:86px;flex:none" spellcheck="false" placeholder="name" value="@item.Name" title="Use it as {@item.Name}"
+                   @onchange="e => Ed.Mutate(() => item.Name = Editor.CleanName(e.Value?.ToString() ?? string.Empty))" />
+            <input class="inp fill" spellcheck="false" placeholder="value" value="@item.Value"
+                   @oninput="e => Ed.Mutate(() => item.Value = e.Value?.ToString() ?? string.Empty, VarKey(item))" />
+            <button class="ibtn sm" title="Remove variable" @onclick="() => Ed.RemoveVariable(item)"><Icon Name="x" /></button>
+        </div>
+    }
+    <div class="hint">
+        Write <b>{name}</b> in any text or code value. Numeric fields accept names and maths directly, such as
+        <b>gap * 2</b> or <b>Title.right + 1</b> (a property of the object named Title: x, y, w, h, right, bottom, cx, cy, fontSize…).
+    </div>
+</div>
+
+<div class="sect">
+    <div class="sect-title">Counter</div>
+    <div class="grid2">
+        <NumberField Label="NEXT" Value="doc.Counter.Value" Step="1" Decimals="0" Title="The value {seq} shows now and the first one printed"
+                     ValueChanged="v => Ed.Mutate(() => doc.Counter.Value = v)" />
+        <NumberField Label="STEP" Value="doc.Counter.Step" Step="1" Decimals="0" Title="Added for every printed copy"
+                     ValueChanged="v => Ed.Mutate(() => doc.Counter.Step = v)" />
+    </div>
+    <div class="hint">
+        <b>{seq}</b> numbers each printed copy; <b>{seq:0000}</b> pads with zeros. The counter moves on after printing.
+    </div>
+</div>
+
+<div class="sect">
+    <div class="sect-title">
+        Cut marks
+        <span class="grow"></span>
+        <button class="btn sm" title="Add a full cut in the middle of the label" @onclick="() => Ed.AddCut(doc.WidthMm / 2, false)"><Icon Name="cut" />Add</button>
+    </div>
+    @foreach (var c in doc.Cuts)
+    {
+        var cut = c;
+        <div class="row">
+            <div style="width:96px;flex:none">
+                <NumberField Label="AT" Unit="mm" Value="cut.X" Min="1" Max="@(doc.WidthMm - 1)" Step="0.5" Decimals="1" ValueChanged="v => Ed.Mutate(() => cut.X = v)" />
+            </div>
+            <div class="seg fill">
+                <button class="@(cut.Half ? "" : "on")" title="Cut through tape and backing" @onclick="() => Ed.Mutate(() => cut.Half = false)">Full</button>
+                <button class="@(cut.Half ? "on" : "")" title="Cut the tape only; the backing keeps the pieces together" @onclick="() => Ed.Mutate(() => cut.Half = true)">Half</button>
+            </div>
+            <button class="ibtn sm" title="Remove cut mark" @onclick="() => Ed.RemoveCut(cut)"><Icon Name="x" /></button>
+        </div>
+    }
+    <div class="hint">
+        @(doc.Cuts.Count == 0
+            ? "Cut the label into pieces while it prints. Use the scissors tool, or Add, then drag the mark's tab above the label."
+            : "The printer needs blank feed either side of a cut; the print preview shows what is lost.")
+    </div>
 </div>
 
 @code {
     int Px(double mm) => (int)Math.Round(mm * Ed.Doc.Dpi / 25.4);
+
+    static string VarKey(Variable v) => "var:" + v.Name;
+
+    void SetAuto(bool auto)
+    {
+        if (Ed.Doc.AutoWidth == auto) return;
+        Ed.Mutate(() => Ed.Doc.AutoWidth = auto);
+        Ed.ZoomToFit();
+    }
 
     void ResetMargins() => Ed.Mutate(() => Ed.Doc.Margins = Media.DefaultMargins(Media.Get(Ed.Doc.MediaId)));
 }
