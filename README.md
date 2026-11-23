@@ -1,4 +1,4 @@
-# Labelbench
+# WebLabelMaker
 
 A label designer that runs entirely in the browser and prints straight to Brother
 P-touch tape printers over Bluetooth or a serial (COM) port. No install, no account,

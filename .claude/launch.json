@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "labelbench",
+      "name": "web-label-maker",
       "runtimeExecutable": "dotnet",
       "runtimeArgs": ["run", "--project", "src/LabelMaker", "--urls", "http://localhost:5210"],
       "port": 5210

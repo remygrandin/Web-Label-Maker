@@ -1,4 +1,4 @@
-﻿// Labelbench serial transport (Web Serial). A Bluetooth printer paired with the OS
+﻿// WebLabelMaker serial transport (Web Serial). A Bluetooth printer paired with the OS
 // shows up as a serial port, so the same code drives USB-serial and Bluetooth SPP.
 (() => {
     const LM = window.LM;

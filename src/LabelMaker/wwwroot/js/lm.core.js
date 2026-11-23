@@ -1,4 +1,4 @@
-// Labelbench core: shared state, preferences, theme, canvas input forwarding.
+// WebLabelMaker core: shared state, preferences, theme, canvas input forwarding.
 (() => {
     const LM = window.LM = {};
     const state = LM.state = { canvas: null, ref: null, frame: null, raf: 0, space: false };

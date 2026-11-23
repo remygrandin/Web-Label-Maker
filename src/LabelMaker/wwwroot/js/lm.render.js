@@ -1,4 +1,4 @@
-﻿// Labelbench renderer. One drawing path serves the editor canvas, thumbnails and
+﻿// WebLabelMaker renderer. One drawing path serves the editor canvas, thumbnails and
 // the 1-bit print raster, so what is on screen is what reaches the print head.
 (() => {
     const LM = window.LM;

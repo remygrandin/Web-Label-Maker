@@ -9,7 +9,7 @@ public sealed record LibraryEntry(string Id, string Name, string Modified, doubl
 /// <summary>The on-disk JSON envelope for exports: one label, one template, or a whole archive.</summary>
 public sealed class LabelFile
 {
-    public const string FormatName = "labelbench";
+    public const string FormatName = "weblabelmaker";
     public string Format { get; set; } = FormatName;
     public int Version { get; set; } = 1;
     /// <summary>"document", "template" or "archive".</summary>
@@ -232,7 +232,7 @@ public sealed class Library
     {
         if (_ed.Dirty && _ed.Doc.Nodes.Count > 0) await Save(quiet: true);
         var file = new LabelFile { Kind = "archive", Documents = await All(Docs), Templates = await All(Templates) };
-        await Download($"labelbench-archive-{DateTime.Now:yyyy-MM-dd}.json", file);
+        await Download($"weblabelmaker-archive-{DateTime.Now:yyyy-MM-dd}.json", file);
         _shell.Toast($"Exported {file.Documents.Count} labels and {file.Templates.Count} templates.");
     }
 
@@ -243,7 +243,7 @@ public sealed class Library
         try
         {
             var file = DocJson.Read<LabelFile>(picked[1]);
-            if (file is null || file.Format != LabelFile.FormatName) throw new FormatException("not a Labelbench file");
+            if (file is null || file.Format != LabelFile.FormatName) throw new FormatException("not a WebLabelMaker file");
             if (file.Kind == "archive")
             {
                 foreach (var d in file.Documents ?? new()) await Put(Docs, d);

@@ -22,7 +22,7 @@ public sealed class AppSettings
 /// <summary>App chrome state: persisted settings, the open dialog, toasts.</summary>
 public sealed class Shell
 {
-    const string Key = "lb.settings";
+    const string Key = "wlm.settings";
     readonly IJSInProcessRuntime _js;
     CancellationTokenSource? _toastCts;
 

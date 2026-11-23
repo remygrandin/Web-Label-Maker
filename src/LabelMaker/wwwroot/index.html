@@ -4,12 +4,12 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Labelbench</title>
+    <title>WebLabelMaker</title>
     <base href="/" />
     <script>
         // Apply the saved theme before first paint to avoid a flash.
         try {
-            var t = JSON.parse(localStorage.getItem('lb.settings') || '{}').theme;
+            var t = JSON.parse(localStorage.getItem('wlm.settings') || '{}').theme;
             if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
         } catch (e) { }
     </script>
@@ -26,7 +26,7 @@
 <body>
     <div id="app">
         <div class="boot">
-            <div class="boot-mark">LABELBENCH</div>
+            <div class="boot-mark">WEB LABEL MAKER</div>
             <div class="boot-bar"><i></i></div>
         </div>
     </div>

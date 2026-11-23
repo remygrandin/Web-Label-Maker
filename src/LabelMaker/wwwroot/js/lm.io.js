@@ -1,4 +1,4 @@
-﻿// Labelbench I/O: Google Fonts loading, IndexedDB library, file import/export.
+﻿// WebLabelMaker I/O: Google Fonts loading, IndexedDB library, file import/export.
 (() => {
     const LM = window.LM;
 
@@ -41,7 +41,7 @@
     // "meta" holds single values such as the autosaved working document.
     let dbp = null;
     const db = () => dbp ??= new Promise((resolve, reject) => {
-        const req = indexedDB.open('labelbench', 1);
+        const req = indexedDB.open('weblabelmaker', 1);
         req.onupgradeneeded = () => {
             for (const s of ['docs', 'templates', 'meta']) if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s, { keyPath: 'id' });
         };
