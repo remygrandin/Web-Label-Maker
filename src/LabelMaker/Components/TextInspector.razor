@@ -1,0 +1,83 @@
+@implements IDisposable
+@inject Editor Ed
+@inject IJSRuntime JS
+
+<div class="sect">
+    <div class="sect-title">Text</div>
+    <textarea id="text-content" class="area" spellcheck="false" rows="3" value="@Node.Text"
+              @oninput="e => Ed.Mutate(() => Node.Text = e.Value?.ToString() ?? string.Empty, TextKey)"></textarea>
+    <div class="row">
+        <div class="fill"><FontPicker Value="@Node.FontFamily" ValueChanged="f => Ed.Mutate(() => Node.FontFamily = f)" /></div>
+    </div>
+    <div class="row">
+        <div class="fill">
+            <NumberField Unit="pt" Value="Node.FontSize" Min="2" Max="400" Step="0.5" Decimals="1" Disabled="Node.Mode == TextMode.Fit"
+                         Title="Font size" ValueChanged="v => Ed.Mutate(() => Node.FontSize = v)" />
+        </div>
+        <div class="seg">
+            <button class="@(Node.Bold ? "on" : "")" title="Bold" @onclick="() => Ed.Mutate(() => Node.Bold = !Node.Bold)"><Icon Name="bold" /></button>
+            <button class="@(Node.Italic ? "on" : "")" title="Italic" @onclick="() => Ed.Mutate(() => Node.Italic = !Node.Italic)"><Icon Name="italic" /></button>
+        </div>
+        <div class="seg">
+            <button class="@(Node.Align == HAlign.Left ? "on" : "")" title="Align left" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Left)"><Icon Name="text-left" /></button>
+            <button class="@(Node.Align == HAlign.Center ? "on" : "")" title="Centre" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Center)"><Icon Name="text-center" /></button>
+            <button class="@(Node.Align == HAlign.Right ? "on" : "")" title="Align right" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Right)"><Icon Name="text-right" /></button>
+        </div>
+    </div>
+    <div class="row">
+        <span class="lbl">Box</span>
+        <div class="seg fill">
+            <button class="@(Node.Mode == TextMode.Auto ? "on" : "")" title="The box hugs the text; resizing scales the font" @onclick="() => SetMode(TextMode.Auto)">Hug</button>
+            <button class="@(Node.Mode == TextMode.Wrap ? "on" : "")" title="Fixed box; long lines wrap" @onclick="() => SetMode(TextMode.Wrap)">Wrap</button>
+            <button class="@(Node.Mode == TextMode.Fit ? "on" : "")" title="The text scales to fill the box" @onclick="() => SetMode(TextMode.Fit)">Fill</button>
+        </div>
+    </div>
+    @if (Node.Mode != TextMode.Auto)
+    {
+        <div class="row">
+            <span class="lbl">Vertical</span>
+            <div class="seg">
+                <button class="@(Node.VAlign == VAlign.Top ? "on" : "")" title="Top" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Top)"><Icon Name="valign-top" /></button>
+                <button class="@(Node.VAlign == VAlign.Middle ? "on" : "")" title="Middle" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Middle)"><Icon Name="valign-mid" /></button>
+                <button class="@(Node.VAlign == VAlign.Bottom ? "on" : "")" title="Bottom" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Bottom)"><Icon Name="valign-bot" /></button>
+            </div>
+        </div>
+    }
+    <div class="grid2" style="margin-top:6px">
+        <NumberField Label="LH" Value="Node.LineHeight" Min="0.6" Max="3" Step="0.05" Title="Line height"
+                     ValueChanged="v => Ed.Mutate(() => Node.LineHeight = v)" />
+        <NumberField Label="TR" Value="Node.Tracking" Min="-200" Max="1000" Step="10" Decimals="0" Title="Letter spacing (1/1000 em)"
+                     ValueChanged="v => Ed.Mutate(() => Node.Tracking = v)" />
+    </div>
+    <div class="row">
+        <label class="check fill">
+            <input type="checkbox" checked="@Node.Invert" @onchange="e => Ed.Mutate(() => Node.Invert = (bool)e.Value!)" /><i></i>
+            White on black
+        </label>
+        <div style="width:96px">
+            <NumberField Label="PAD" Unit="mm" Value="Node.Padding" Min="0" Max="20" Step="0.25" Title="Inner padding"
+                         ValueChanged="v => Ed.Mutate(() => Node.Padding = v)" />
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public TextNode Node { get; set; } = default!;
+
+    string TextKey => "text:" + Node.Id;
+
+    protected override void OnInitialized() => Ed.TextFocusRequested += Focus;
+    public void Dispose() => Ed.TextFocusRequested -= Focus;
+
+    async void Focus()
+    {
+        await Task.Delay(30); // let the inspector render the field first
+        await JS.InvokeVoidAsync("LM.focus", "#text-content", true);
+    }
+
+    void SetMode(TextMode mode) => Ed.Mutate(() =>
+    {
+        // leaving Fill: adopt the size the text was being drawn at, so nothing jumps
+        Node.Mode = mode;
+    });
+}

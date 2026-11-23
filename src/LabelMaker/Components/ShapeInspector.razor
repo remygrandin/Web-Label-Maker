@@ -1,0 +1,66 @@
+@inject Editor Ed
+
+<div class="sect">
+    <div class="sect-title">Shape</div>
+    <div class="row">
+        <span class="lbl">Kind</span>
+        <select class="sel fill" value="@Node.Kind" @onchange="e => Ed.Mutate(() => Node.Kind = Enum.Parse<ShapeKind>(e.Value!.ToString()!))">
+            @foreach (var k in Enum.GetValues<ShapeKind>())
+            {
+                <option value="@k">@(k == ShapeKind.Rect ? "Rectangle" : k.ToString())</option>
+            }
+        </select>
+    </div>
+    @if (!IsLine)
+    {
+        <div class="row">
+            <span class="lbl">Fill</span>
+            <InkPicker Value="Node.Fill" ValueChanged="v => Ed.Mutate(() => Node.Fill = v)" />
+        </div>
+    }
+    <div class="row">
+        <span class="lbl">Stroke</span>
+        <InkPicker Value="Node.Stroke" ValueChanged="v => Ed.Mutate(() => Node.Stroke = v)" AllowNone="!IsLine" />
+        <div class="fill">
+            <NumberField Unit="mm" Value="Node.StrokeWidth" Min="0" Max="20" Step="0.1" Title="Stroke width"
+                         ValueChanged="v => Ed.Mutate(() => Node.StrokeWidth = v)" />
+        </div>
+    </div>
+    <div class="row">
+        <span class="lbl">Style</span>
+        <div class="seg fill">
+            @foreach (var d in Enum.GetValues<DashStyle>())
+            {
+                <button class="@(Node.Dash == d ? "on" : "")" @onclick="() => Ed.Mutate(() => Node.Dash = d)">@d</button>
+            }
+        </div>
+    </div>
+    @if (Node.Kind == ShapeKind.Rect)
+    {
+        <div class="row">
+            <span class="lbl">Corners</span>
+            <div class="fill">
+                <NumberField Unit="mm" Value="Node.CornerRadius" Min="0" Max="50" Step="0.25" ValueChanged="v => Ed.Mutate(() => Node.CornerRadius = v)" />
+            </div>
+        </div>
+    }
+    @if (Node.Kind is ShapeKind.Polygon or ShapeKind.Star)
+    {
+        <div class="row">
+            <span class="lbl">@(Node.Kind == ShapeKind.Star ? "Points" : "Sides")</span>
+            <div class="fill">
+                <NumberField Value="Node.Sides" Min="3" Max="24" Step="1" Decimals="0" ValueChanged="v => Ed.Mutate(() => Node.Sides = (int)v)" />
+            </div>
+        </div>
+    }
+    @if (IsLine)
+    {
+        <div class="hint">Drag either end on the canvas. Hold Shift for 15° steps.</div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ShapeNode Node { get; set; } = default!;
+
+    bool IsLine => Node.Kind == ShapeKind.Line;
+}

@@ -1,0 +1,66 @@
+@inject Editor Ed
+@inject IJSRuntime JS
+
+<div class="sect">
+    <div class="sect-title">
+        Image
+        <span class="grow"></span>
+        <button class="btn sm" @onclick="Replace">Replace…</button>
+    </div>
+    <div class="row">
+        <span class="lbl">Dither</span>
+        <select class="sel fill" value="@Node.Dither" @onchange="e => Ed.Mutate(() => Node.Dither = Enum.Parse<DitherMode>(e.Value!.ToString()!))">
+            <option value="@DitherMode.FloydSteinberg">Floyd–Steinberg</option>
+            <option value="@DitherMode.Atkinson">Atkinson</option>
+            <option value="@DitherMode.Bayer">Ordered (Bayer 8×8)</option>
+            <option value="@DitherMode.Threshold">Threshold (no dither)</option>
+        </select>
+    </div>
+    <div class="row">
+        <span class="lbl">Threshold</span>
+        <input class="range" type="range" min="16" max="240" value="@Node.Threshold" @oninput="e => Slide(v => Node.Threshold = v, e)" />
+        <span class="range-val">@Node.Threshold</span>
+    </div>
+    <div class="row">
+        <span class="lbl">Brightness</span>
+        <input class="range" type="range" min="-100" max="100" value="@Node.Brightness" @oninput="e => Slide(v => Node.Brightness = v, e)" />
+        <span class="range-val">@Node.Brightness</span>
+    </div>
+    <div class="row">
+        <span class="lbl">Contrast</span>
+        <input class="range" type="range" min="-100" max="100" value="@Node.Contrast" @oninput="e => Slide(v => Node.Contrast = v, e)" />
+        <span class="range-val">@Node.Contrast</span>
+    </div>
+    <div class="row">
+        <span class="lbl"></span>
+        <label class="check">
+            <input type="checkbox" checked="@Node.Invert" @onchange="e => Ed.Mutate(() => Node.Invert = (bool)e.Value!)" /><i></i>
+            Invert
+        </label>
+    </div>
+    <div class="row">
+        <span class="lbl"></span>
+        <label class="check">
+            <input type="checkbox" checked="@Node.LockAspect" @onchange="e => Ed.Mutate(() => Node.LockAspect = (bool)e.Value!)" /><i></i>
+            Keep proportions
+        </label>
+    </div>
+    <div class="hint">Dithering is computed at the printer's resolution, so the preview shows the exact dots that print.</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ImageNode Node { get; set; } = default!;
+
+    sealed record Picked(string DataUrl, double W, double H, string Name);
+
+    void Slide(Action<int> set, ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v)) Ed.Mutate(() => set(v), "img-slider");
+    }
+
+    async Task Replace()
+    {
+        var img = await JS.InvokeAsync<Picked?>("LM.pickImage");
+        if (img is not null) Ed.ReplaceImage(Node, img.DataUrl, img.W, img.H);
+    }
+}

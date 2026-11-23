@@ -8,5 +8,6 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped<Shell>();
+builder.Services.AddScoped<Editor>();
 
 await builder.Build().RunAsync();

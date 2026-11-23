@@ -1,0 +1,43 @@
+@inherits EditorComponent
+
+<div class="sect">
+    <div class="sect-title">
+        Align
+        <span class="grow"></span>
+        <select class="sel" style="width:auto;height:20px;font-size:11px" title="What objects are aligned to"
+                value="@Shell.Settings.AlignTo" @onchange="SetTarget">
+            <option value="auto">Auto</option>
+            <option value="selection">To selection</option>
+            <option value="label">To label</option>
+            <option value="margins">To margins</option>
+        </select>
+    </div>
+    <div class="aligns">
+        <button class="ibtn" title="Align left" @onclick='() => Ed.Align("left")'><Icon Name="align-left" /></button>
+        <button class="ibtn" title="Align horizontal centres" @onclick='() => Ed.Align("hcenter")'><Icon Name="align-hcenter" /></button>
+        <button class="ibtn" title="Align right" @onclick='() => Ed.Align("right")'><Icon Name="align-right" /></button>
+        <button class="ibtn" title="Align top" @onclick='() => Ed.Align("top")'><Icon Name="align-top" /></button>
+        <button class="ibtn" title="Align vertical centres" @onclick='() => Ed.Align("vmiddle")'><Icon Name="align-vmiddle" /></button>
+        <button class="ibtn" title="Align bottom" @onclick='() => Ed.Align("bottom")'><Icon Name="align-bottom" /></button>
+        <button class="ibtn" title="Distribute horizontally" disabled="@(Ed.Selection.Count < 2)" @onclick="() => Ed.Distribute(true)"><Icon Name="dist-h" /></button>
+        <button class="ibtn" title="Distribute vertically" disabled="@(Ed.Selection.Count < 2)" @onclick="() => Ed.Distribute(false)"><Icon Name="dist-v" /></button>
+    </div>
+    <div class="aligns" style="margin-top:6px">
+        <button class="ibtn" title="Bring to front (Ctrl+Shift+])" @onclick="() => Ed.Reorder(Order.Front)"><Icon Name="front" /></button>
+        <button class="ibtn" title="Bring forward (Ctrl+])" @onclick="() => Ed.Reorder(Order.Forward)"><Icon Name="forward" /></button>
+        <button class="ibtn" title="Send backward (Ctrl+[)" @onclick="() => Ed.Reorder(Order.Backward)"><Icon Name="backward" /></button>
+        <button class="ibtn" title="Send to back (Ctrl+Shift+[)" @onclick="() => Ed.Reorder(Order.Back)"><Icon Name="back" /></button>
+        <span></span>
+        <span></span>
+        <button class="ibtn" title="Group (Ctrl+G)" disabled="@(!Ed.CanGroup)" @onclick="Ed.Group"><Icon Name="group" /></button>
+        <button class="ibtn" title="Ungroup (Ctrl+Shift+G)" disabled="@(!Ed.CanUngroup)" @onclick="Ed.Ungroup"><Icon Name="ungroup" /></button>
+    </div>
+</div>
+
+@code {
+    void SetTarget(ChangeEventArgs e)
+    {
+        Shell.Settings.AlignTo = e.Value?.ToString() ?? "auto";
+        Shell.SaveSettings();
+    }
+}

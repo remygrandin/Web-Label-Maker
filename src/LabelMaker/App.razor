@@ -1,20 +1,14 @@
 ﻿@implements IDisposable
 @inject Shell Shell
+@inject Editor Ed
 
 <div class="app">
-    <header class="topbar">
-        <div class="brand"><Icon Name="tape" /></div>
-        <span class="wordmark">LABELBENCH</span>
-        <span class="top-spacer"></span>
-        <button class="ibtn" title="Theme: @Shell.Settings.Theme" @onclick="Shell.CycleTheme">
-            <Icon Name="@ThemeIcon" />
-        </button>
-    </header>
-    <nav class="rail"></nav>
-    <aside class="panel layers"></aside>
-    <main class="stage"></main>
-    <aside class="panel insp"></aside>
-    <footer class="status"></footer>
+    <TopBar />
+    <ToolRail />
+    <LayersPanel />
+    <CanvasView />
+    <Inspector />
+    <StatusBar />
 </div>
 
 @if (Shell.ToastText is { } toast)
@@ -23,8 +17,13 @@
 }
 
 @code {
-    string ThemeIcon => Shell.Settings.Theme switch { "light" => "sun", "dark" => "moon", _ => "system" };
+    protected override void OnInitialized() => Shell.Changed += Update;
 
-    protected override void OnInitialized() => Shell.Changed += StateHasChanged;
-    public void Dispose() => Shell.Changed -= StateHasChanged;
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender) await Ed.Load(Ed.Doc);
+    }
+
+    void Update() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Shell.Changed -= Update;
 }

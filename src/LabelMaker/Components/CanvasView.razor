@@ -1,0 +1,40 @@
+@implements IDisposable
+@inject IJSRuntime JS
+@inject Editor Ed
+
+<main class="stage"><canvas @ref="_canvas"></canvas></main>
+
+@code {
+    ElementReference _canvas;
+    DotNetObjectReference<CanvasView>? _ref;
+
+    // The canvas is painted from JS; the markup never changes.
+    protected override bool ShouldRender() => false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _ref = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("LM.initCanvas", _canvas, _ref);
+    }
+
+    [JSInvokable] public void OnCanvasResize(double w, double h) => Ed.CanvasResized(w, h);
+    [JSInvokable] public void OnPointerDown(double x, double y, int button, int mods) => Ed.PointerDown(x, y, button, mods);
+    [JSInvokable] public string OnPointerMove(double x, double y, int mods) => Ed.PointerMove(x, y, mods);
+    [JSInvokable] public void OnPointerUp(double x, double y, int mods) => Ed.PointerUp(x, y, mods);
+    [JSInvokable] public void OnDoubleClick(double x, double y) => Ed.DoubleClick(x, y);
+    [JSInvokable] public void OnWheel(double x, double y, double dx, double dy, int mods) => Ed.Wheel(x, y, dx, dy, mods);
+    [JSInvokable] public bool OnKey(string key, int mods) => Ed.Key(key, mods);
+    [JSInvokable] public void OnPaste() => Ed.Paste();
+    [JSInvokable] public void OnImageDropped(string dataUrl, double w, double h, double x, double y) => Ed.AddImage(dataUrl, w, h, x, y);
+
+    [JSInvokable]
+    public void OnFontsLoaded()
+    {
+        // late-arriving glyphs change text metrics
+        Ed.Sync();
+        Ed.Refresh();
+    }
+
+    public void Dispose() => _ref?.Dispose();
+}

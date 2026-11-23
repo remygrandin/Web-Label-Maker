@@ -1,0 +1,63 @@
+@inherits EditorComponent
+
+<footer class="status">
+    <span class="cell" title="Tape and label length"><b>@Media.Get(Ed.Doc.MediaId).Label</b> × @F(Ed.Doc.WidthMm) mm</span>
+    <span class="vr"></span>
+    <span class="cell" style="min-width:150px">
+        @if (Ed.Cursor is { } c)
+        {
+            <text>x <b>@F(c.X)</b>&nbsp;&nbsp;y <b>@F(c.Y)</b></text>
+        }
+    </span>
+    <span class="grow"></span>
+
+    <span class="cell" title="Snapping pulls moved and resized edges onto nearby lines. Hold Ctrl to bypass.">
+        <Icon Name="magnet" />
+    </span>
+    <button class="sbtn @(S.SnapObjects ? "on" : "")" title="Snap to other objects' edges and centres" @onclick="() => Toggle(() => S.SnapObjects = !S.SnapObjects)">
+        <i class="led"></i>Objects
+    </button>
+    <button class="sbtn @(S.SnapMargins ? "on" : "")" title="Snap to the document margins" @onclick="() => Toggle(() => S.SnapMargins = !S.SnapMargins)">
+        <i class="led"></i>Margins
+    </button>
+    <button class="sbtn @(S.SnapLabel ? "on" : "")" title="Snap to the label's edges and centre lines" @onclick="() => Toggle(() => S.SnapLabel = !S.SnapLabel)">
+        <i class="led"></i>Label
+    </button>
+    <span class="vr"></span>
+    <button class="sbtn @(S.ShowMargins ? "on" : "")" title="Show or hide the margin guides" @onclick="() => Toggle(() => S.ShowMargins = !S.ShowMargins)">
+        <Icon Name="margins" />Margin guides
+    </button>
+    <span class="vr"></span>
+    <button class="sbtn" title="Zoom out (Ctrl+−)" @onclick="() => Ed.ZoomBy(0.8)"><Icon Name="minus" /></button>
+    <button class="sbtn" style="min-width:48px;justify-content:center" title="Zoom to fit (Ctrl+0)" @onclick="Ed.ZoomToFit">@Percent%</button>
+    <button class="sbtn" title="Zoom in (Ctrl++)" @onclick="() => Ed.ZoomBy(1.25)"><Icon Name="plus" /></button>
+    <button class="sbtn" title="Zoom to fit (Ctrl+0)" @onclick="Ed.ZoomToFit"><Icon Name="fit" /></button>
+</footer>
+
+@code {
+    AppSettings S => Shell.Settings;
+
+    // 100% = physical size on a 96 dpi display
+    int Percent => (int)Math.Round(Ed.Zoom / (96 / 25.4) * 100);
+
+    static string F(double v) => v.ToString("0.0", CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        Ed.CursorMoved += Update;
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        Ed.CursorMoved -= Update;
+    }
+
+    void Toggle(Action change)
+    {
+        change();
+        Shell.SaveSettings();
+        Ed.Refresh();
+    }
+}

@@ -1,0 +1,78 @@
+@inject Editor Ed
+
+<div class="sect">
+    <div class="sect-title">Code</div>
+    <div class="row">
+        <span class="lbl">Format</span>
+        <select class="sel fill" value="@Node.Format" @onchange="SetFormat">
+            <optgroup label="2D">
+                @foreach (var f in TwoD) { <option value="@f">@CodeNames.Of(f)</option> }
+            </optgroup>
+            <optgroup label="Linear">
+                @foreach (var f in Enum.GetValues<CodeFormat>().Except(TwoD)) { <option value="@f">@CodeNames.Of(f)</option> }
+            </optgroup>
+        </select>
+    </div>
+    <textarea class="area" style="margin-top:6px;min-height:44px" rows="2" spellcheck="false" placeholder="Value to encode" value="@Node.Value"
+              @oninput="e => Ed.Mutate(() => Node.Value = e.Value?.ToString() ?? string.Empty, Key)"></textarea>
+    @if (Barcodes.Error(Node) is { } err)
+    {
+        <div class="warn">@err</div>
+    }
+    @if (Node.Format == CodeFormat.QrCode)
+    {
+        <div class="row">
+            <span class="lbl">Recovery</span>
+            <div class="seg fill">
+                @foreach (var l in Enum.GetValues<EccLevel>())
+                {
+                    <button class="@(Node.Ecc == l ? "on" : "")" title="@EccTip(l)" @onclick="() => Ed.Mutate(() => Node.Ecc = l)">@l</button>
+                }
+            </div>
+        </div>
+    }
+    @if (!Node.Is2D)
+    {
+        <div class="row">
+            <span class="lbl"></span>
+            <label class="check">
+                <input type="checkbox" checked="@Node.ShowText" @onchange="e => Ed.Mutate(() => Node.ShowText = (bool)e.Value!)" /><i></i>
+                Show value under bars
+            </label>
+        </div>
+    }
+    <div class="row">
+        <span class="lbl"></span>
+        <label class="check">
+            <input type="checkbox" checked="@Node.QuietZone" @onchange="e => Ed.Mutate(() => Node.QuietZone = (bool)e.Value!)" /><i></i>
+            Quiet zone
+        </label>
+    </div>
+    <div class="hint">Modules snap to whole printer dots, so the code steps in size as you resize it.</div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public BarcodeNode Node { get; set; } = default!;
+
+    static readonly CodeFormat[] TwoD = [CodeFormat.QrCode, CodeFormat.DataMatrix, CodeFormat.Aztec, CodeFormat.Pdf417];
+
+    string Key => "code:" + Node.Id;
+
+    static string EccTip(EccLevel l) => l switch { EccLevel.L => "7% recoverable", EccLevel.M => "15% recoverable", EccLevel.Q => "25% recoverable", _ => "30% recoverable" };
+
+    void SetFormat(ChangeEventArgs e)
+    {
+        var f = Enum.Parse<CodeFormat>(e.Value!.ToString()!);
+        Ed.Mutate(() =>
+        {
+            bool was2D = Node.Is2D;
+            // swap in a sample when the current value is just the previous format's sample
+            if (Node.Value == Editor.SampleValue(Node.Format) || string.IsNullOrEmpty(Node.Value)) Node.Value = Editor.SampleValue(f);
+            Node.Format = f;
+            double cx = Node.Cx;
+            if (Node.Is2D && f != CodeFormat.Pdf417) Node.W = Node.H;
+            else if (was2D && !Node.Is2D || f == CodeFormat.Pdf417) Node.W = Math.Max(Node.W, Node.H * 2.4);
+            Node.X = cx - Node.W / 2;
+        });
+    }
+}

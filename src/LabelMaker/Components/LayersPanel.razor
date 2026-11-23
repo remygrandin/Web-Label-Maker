@@ -1,0 +1,154 @@
+@inherits EditorComponent
+
+<aside class="panel layers">
+    <div class="phead">
+        Layers
+        <span class="count">@Ed.All().Count(n => n is not GroupNode)</span>
+        <span class="grow"></span>
+        <button class="ibtn sm" title="Group (Ctrl+G)" disabled="@(!Ed.CanGroup)" @onclick="Ed.Group"><Icon Name="group" /></button>
+        <button class="ibtn sm" title="Ungroup (Ctrl+Shift+G)" disabled="@(!Ed.CanUngroup)" @onclick="Ed.Ungroup"><Icon Name="ungroup" /></button>
+    </div>
+    <div class="tree" @onclick="Ed.ClearSelection">
+        @if (Ed.Doc.Nodes.Count == 0)
+        {
+            <div class="empty">No objects yet. The top row is the front-most layer; drag rows to reorder or drop them onto a group.</div>
+        }
+        @Rows(Ed.Doc.Nodes, 0, false)
+    </div>
+    <div class="lfoot">
+        <button class="ibtn sm" title="Bring forward (Ctrl+])" disabled="@None" @onclick="() => Ed.Reorder(Order.Forward)"><Icon Name="forward" /></button>
+        <button class="ibtn sm" title="Send backward (Ctrl+[)" disabled="@None" @onclick="() => Ed.Reorder(Order.Backward)"><Icon Name="backward" /></button>
+        <span class="grow"></span>
+        <button class="ibtn sm" title="Duplicate (Ctrl+D)" disabled="@None" @onclick="Ed.Duplicate"><Icon Name="copy" /></button>
+        <button class="ibtn sm" title="Delete (Del)" disabled="@None" @onclick="Ed.DeleteSelection"><Icon Name="trash" /></button>
+    </div>
+</aside>
+
+@code {
+    string? _dragId, _dropId, _editId;
+    DropPos _dropPos;
+    string _editText = "";
+
+    bool None => Ed.Selection.Count == 0;
+
+    // Front-most first, like every layer list.
+    RenderFragment Rows(List<Node> nodes, int depth, bool dimmed) => __builder =>
+    {
+        foreach (var n in Enumerable.Reverse(nodes))
+        {
+            var node = n;
+            bool sel = Ed.Selection.Contains(node.Id), hidden = dimmed || !node.Visible;
+            string drop = _dropId == node.Id ? _dropPos switch { DropPos.Above => "drop-above", DropPos.Below => "drop-below", _ => "drop-inside" } : "";
+            <div class="lrow @(sel ? "sel" : "") @(hidden ? "hidden" : "") @drop" style="padding-left:@(6 + depth * 14)px" draggable="true"
+                 @key="node.Id"
+                 @onclick="e => Ed.SelectFromTree(node, e.CtrlKey || e.MetaKey || e.ShiftKey)" @onclick:stopPropagation="true"
+                 @ondblclick="() => BeginRename(node)"
+                 @ondragstart="() => DragStart(node)" @ondragend="DragEnd"
+                 @ondragover="e => DragOver(node, e)" @ondragover:preventDefault="true"
+                 @ondrop="Drop" @ondrop:preventDefault="true">
+                @if (node is GroupNode g)
+                {
+                    <button class="caret" @onclick="() => ToggleCollapse(g)" @onclick:stopPropagation="true">
+                        <Icon Name="@(g.Collapsed ? "chev-right" : "chev-down")" />
+                    </button>
+                }
+                else
+                {
+                    <span class="caret"></span>
+                }
+                <span class="ltype"><Icon Name="@IconFor(node)" /></span>
+                @if (_editId == node.Id)
+                {
+                    <input id="layer-rename" class="lname-edit" value="@_editText" @onclick:stopPropagation="true"
+                           @onchange="e => CommitRename(node, e.Value?.ToString())" @onblur="() => _editId = null"
+                           @onkeydown="RenameKey" />
+                }
+                else
+                {
+                    <span class="lname">@Editor.DisplayName(node)</span>
+                }
+                <button class="lact @(node.Locked ? "on" : "")" title="@(node.Locked ? "Unlock" : "Lock")"
+                        @onclick="() => Ed.SetLocked(node, !node.Locked)" @onclick:stopPropagation="true">
+                    <Icon Name="@(node.Locked ? "lock" : "unlock")" />
+                </button>
+                <button class="lact @(node.Visible ? "" : "on")" title="@(node.Visible ? "Hide" : "Show")"
+                        @onclick="() => Ed.SetVisible(node, !node.Visible)" @onclick:stopPropagation="true">
+                    <Icon Name="@(node.Visible ? "eye" : "eye-off")" />
+                </button>
+            </div>
+            @if (node is GroupNode { Collapsed: false } open)
+            {
+                @Rows(open.Children, depth + 1, hidden)
+            }
+        }
+    };
+
+    [Inject] IJSRuntime JS { get; set; } = default!;
+
+    static string IconFor(Node n) => n switch
+    {
+        TextNode => "text",
+        ImageNode => "image",
+        BarcodeNode b => b.Is2D ? "qr" : "barcode",
+        GroupNode => "group",
+        ShapeNode s => s.Kind switch
+        {
+            ShapeKind.Ellipse => "ellipse", ShapeKind.Line => "line", ShapeKind.Triangle => "triangle", ShapeKind.Diamond => "diamond",
+            ShapeKind.Polygon => "polygon", ShapeKind.Star => "star", ShapeKind.Arrow => "arrow", _ => "rect",
+        },
+        _ => "rect",
+    };
+
+    void ToggleCollapse(GroupNode g)
+    {
+        g.Collapsed = !g.Collapsed;
+        Ed.Refresh();
+    }
+
+    async Task BeginRename(Node n)
+    {
+        _editId = n.Id;
+        _editText = Editor.DisplayName(n);
+        StateHasChanged();
+        await Task.Yield();
+        await JS.InvokeVoidAsync("LM.focus", "#layer-rename", true);
+    }
+
+    void RenameKey(KeyboardEventArgs e) { if (e.Key == "Escape") _editId = null; }
+
+    void CommitRename(Node n, string? text)
+    {
+        _editId = null;
+        if (text is not null && text != Editor.DisplayName(n)) Ed.Rename(n, text);
+    }
+
+    void DragStart(Node n)
+    {
+        _dragId = n.Id;
+        if (!Ed.Selection.Contains(n.Id)) Ed.SelectFromTree(n, false);
+    }
+
+    void DragOver(Node n, DragEventArgs e)
+    {
+        if (_dragId is null) return;
+        // rows are 26px tall: outer bands reorder, the middle of a group drops inside
+        var pos = n is GroupNode
+            ? e.OffsetY < 8 ? DropPos.Above : e.OffsetY > 18 ? DropPos.Below : DropPos.Inside
+            : e.OffsetY < 13 ? DropPos.Above : DropPos.Below;
+        if (_dropId == n.Id && _dropPos == pos) return;
+        _dropId = n.Id;
+        _dropPos = pos;
+    }
+
+    void Drop()
+    {
+        if (_dragId is not null && _dropId is not null)
+            Ed.MoveInTree(Ed.Selection.ToList(), _dropId, _dropPos);
+        DragEnd();
+    }
+
+    void DragEnd()
+    {
+        _dragId = _dropId = null;
+    }
+}

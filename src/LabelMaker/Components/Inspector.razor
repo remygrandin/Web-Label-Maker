@@ -1,0 +1,96 @@
+@inherits EditorComponent
+@inject IJSRuntime JS
+
+<aside class="panel insp">
+    @{ var nodes = Ed.SelectedNodes.ToList(); var one = nodes.Count == 1 ? nodes[0] : null; }
+
+    @if (nodes.Count == 0)
+    {
+        <div class="phead">Label</div>
+        <DocumentInspector />
+    }
+    else
+    {
+        <div class="phead">
+            @(one is null ? "Selection" : TypeName(one))
+            @if (one is null) { <span class="count">@nodes.Count objects</span> }
+            <span class="grow"></span>
+            <button class="ibtn sm" title="Duplicate (Ctrl+D)" @onclick="Ed.Duplicate"><Icon Name="copy" /></button>
+            <button class="ibtn sm" title="Delete (Del)" @onclick="Ed.DeleteSelection"><Icon Name="trash" /></button>
+        </div>
+
+        <ArrangeSection />
+
+        <div class="sect">
+            <div class="sect-title">Geometry</div>
+            @if (one is not null and not GroupNode)
+            {
+                bool auto = one is TextNode { Mode: TextMode.Auto };
+                bool line = one is ShapeNode { Kind: ShapeKind.Line };
+                <div class="grid2">
+                    <NumberField Label="X" Unit="mm" Value="one.X" ValueChanged="v => Ed.Mutate(() => one.X = v)" Step="0.5" />
+                    <NumberField Label="Y" Unit="mm" Value="one.Y" ValueChanged="v => Ed.Mutate(() => one.Y = v)" Step="0.5" />
+                </div>
+                <div class="grid2">
+                    <NumberField Label="W" Unit="mm" Value="one.W" ValueChanged="v => SetSize(one, v, true)" Min="0.3" Step="0.5" Disabled="auto" />
+                    <NumberField Label="H" Unit="mm" Value="one.H" ValueChanged="v => SetSize(one, v, false)" Min="0.3" Step="0.5" Disabled="auto || line" />
+                </div>
+                <div class="grid2">
+                    <NumberField Label="∠" Unit="°" Value="one.Rotation" ValueChanged="v => Rotate(one, v)" Step="15" Decimals="1" />
+                    <div class="seg fill">
+                        <button title="Rotate 90° left" @onclick="() => Rotate(one, one.Rotation - 90)">−90°</button>
+                        <button title="Rotate 90° right" @onclick="() => Rotate(one, one.Rotation + 90)">+90°</button>
+                    </div>
+                </div>
+            }
+            else if (Geo.Bounds(nodes) is { } b)
+            {
+                <div class="grid2">
+                    <NumberField Label="X" Unit="mm" Value="b.X" ValueChanged="v => MoveAll(nodes, v - b.X, 0)" Step="0.5" />
+                    <NumberField Label="Y" Unit="mm" Value="b.Y" ValueChanged="v => MoveAll(nodes, 0, v - b.Y)" Step="0.5" />
+                </div>
+                <div class="grid2">
+                    <NumberField Label="W" Unit="mm" Value="b.W" Disabled="true" />
+                    <NumberField Label="H" Unit="mm" Value="b.H" Disabled="true" />
+                </div>
+            }
+        </div>
+
+        @switch (one)
+        {
+            case TextNode t: <TextInspector Node="t" /> break;
+            case ShapeNode s: <ShapeInspector Node="s" /> break;
+            case ImageNode i: <ImageInspector Node="i" /> break;
+            case BarcodeNode c: <BarcodeInspector Node="c" /> break;
+        }
+    }
+</aside>
+
+@code {
+    static string TypeName(Node n) => n switch
+    {
+        TextNode => "Text",
+        ShapeNode s => s.Kind == ShapeKind.Rect ? "Rectangle" : s.Kind.ToString(),
+        ImageNode => "Image",
+        BarcodeNode b => CodeNames.Of(b.Format),
+        GroupNode => "Group",
+        _ => "Object",
+    };
+
+    void SetSize(Node n, double v, bool width) => Ed.Mutate(() =>
+    {
+        bool uniform = n is BarcodeNode { Is2D: true } or ImageNode { LockAspect: true };
+        double k = v / (width ? n.W : n.H);
+        if (width || uniform) n.W = width ? v : n.W * k;
+        if (!width || uniform) n.H = width ? n.H * k : v;
+    });
+
+    void Rotate(Node n, double deg) => Ed.Mutate(() =>
+    {
+        double cx = n.Cx, cy = n.Cy;
+        n.Rotation = Geo.Norm(deg);
+        n.X = cx - n.W / 2; n.Y = cy - n.H / 2;
+    });
+
+    void MoveAll(List<Node> nodes, double dx, double dy) => Ed.Mutate(() => nodes.ForEach(n => Geo.Translate(n, dx, dy)));
+}

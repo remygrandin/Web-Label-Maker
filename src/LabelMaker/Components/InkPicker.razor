@@ -1,0 +1,14 @@
+<div class="swatches">
+    @if (AllowNone)
+    {
+        <button class="swatch none @(Value == Ink.None ? "on" : "")" title="None" @onclick="() => ValueChanged.InvokeAsync(Ink.None)"></button>
+    }
+    <button class="swatch black @(Value == Ink.Black ? "on" : "")" title="Black (printed)" @onclick="() => ValueChanged.InvokeAsync(Ink.Black)"></button>
+    <button class="swatch white @(Value == Ink.White ? "on" : "")" title="White (tape colour, knocks out what is below)" @onclick="() => ValueChanged.InvokeAsync(Ink.White)"></button>
+</div>
+
+@code {
+    [Parameter] public Ink Value { get; set; }
+    [Parameter] public EventCallback<Ink> ValueChanged { get; set; }
+    [Parameter] public bool AllowNone { get; set; } = true;
+}

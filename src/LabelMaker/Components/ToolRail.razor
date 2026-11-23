@@ -1,0 +1,47 @@
+@inherits EditorComponent
+@inject IJSRuntime JS
+
+<nav class="rail">
+    <button class="tool" data-tip="Text" @onclick="() => Ed.AddText()"><Icon Name="text" /></button>
+    <div class="rule"></div>
+    <button class="tool" data-tip="Rectangle" @onclick="() => Ed.AddShape(ShapeKind.Rect)"><Icon Name="rect" /></button>
+    <button class="tool" data-tip="Ellipse" @onclick="() => Ed.AddShape(ShapeKind.Ellipse)"><Icon Name="ellipse" /></button>
+    <button class="tool" data-tip="Line" @onclick="() => Ed.AddShape(ShapeKind.Line)"><Icon Name="line" /></button>
+    <div style="position:relative">
+        <button class="tool @(_shapes ? "on" : "")" data-tip="More shapes" @onclick="() => _shapes = !_shapes"><Icon Name="shapes" /></button>
+        @if (_shapes)
+        {
+            <div class="menu-scrim" @onclick="() => _shapes = false"></div>
+            <div class="flyout" style="top:0">
+                @foreach (var (kind, icon) in More)
+                {
+                    <button class="tool" title="@kind" @onclick="() => { _shapes = false; Ed.AddShape(kind); }"><Icon Name="@icon" /></button>
+                }
+            </div>
+        }
+    </div>
+    <div class="rule"></div>
+    <button class="tool" data-tip="Image (or drop / paste one)" @onclick="PickImage"><Icon Name="image" /></button>
+    <div class="rule"></div>
+    <button class="tool" data-tip="QR code" @onclick="() => Ed.AddBarcode(CodeFormat.QrCode)"><Icon Name="qr" /></button>
+    <button class="tool" data-tip="Barcode" @onclick="() => Ed.AddBarcode(CodeFormat.Code128)"><Icon Name="barcode" /></button>
+</nav>
+
+@code {
+
+    bool _shapes;
+
+    static readonly (ShapeKind, string)[] More =
+    [
+        (ShapeKind.Triangle, "triangle"), (ShapeKind.Diamond, "diamond"), (ShapeKind.Polygon, "polygon"),
+        (ShapeKind.Star, "star"), (ShapeKind.Arrow, "arrow"),
+    ];
+
+    sealed record Picked(string DataUrl, double W, double H, string Name);
+
+    async Task PickImage()
+    {
+        var img = await JS.InvokeAsync<Picked?>("LM.pickImage");
+        if (img is not null) Ed.AddImage(img.DataUrl, img.W, img.H);
+    }
+}
