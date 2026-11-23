@@ -7,6 +7,7 @@
         <ChildContent><FileMenu /></ChildContent>
         <Actions>
             <button class="btn" title="Saved labels and templates" @onclick="() => Shell.Open(Dialog.Library)"><Icon Name="folder" />Library</button>
+            <button class="btn primary" title="Preview and print" @onclick="() => Shell.Open(Dialog.Print)"><Icon Name="printer" />Print</button>
         </Actions>
     </TopBar>
     <ToolRail />
@@ -19,6 +20,11 @@
 @if (Shell.Dialog is Dialog.Library or Dialog.Templates)
 {
     <LibraryDialog @key="Shell.Dialog" />
+}
+
+@if (Shell.Dialog == Dialog.Print)
+{
+    <PrintDialog />
 }
 
 @if (Shell.ToastText is { } toast)

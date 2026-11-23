@@ -329,7 +329,7 @@ public sealed partial class Editor
             double oldH = Doc.HeightMm;
             Doc.MediaId = m.Id;
             Doc.HeightMm = m.WidthMm;
-            Doc.Dpi = m.Id == "tze-36" ? 360 : 180;
+            Doc.Dpi = Brother.Model(Settings.PrinterModel).Dpi;
             var d = Media.DefaultMargins(m);
             Doc.Margins.T = d.T; Doc.Margins.B = d.B;
             // keep content vertically centred on the new tape
