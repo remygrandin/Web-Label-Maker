@@ -1,0 +1,10 @@
+{
+  // Labelbench is a static Blazor WebAssembly app: the Worker only serves assets.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "labelbench",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist/wwwroot",
+    "not_found_handling": "single-page-application"
+  }
+}
