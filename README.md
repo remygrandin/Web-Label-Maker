@@ -14,6 +14,9 @@ Built with Blazor WebAssembly (.NET 10) and served as static files from a Cloudf
   maths and formats inside the braces, and numeric fields bound to expressions such as `Title.right + 2`.
 - **2D code content**: forms for URL, Wi-Fi, vCard, email, phone, SMS and location payloads.
 - **Cut marks**: full and half cuts placed along the label; the print preview shows each piece.
+- **Cabling layouts**: cable wrap (content repeated round the cable), flags (two faces around a fold, the second
+  mirrored or designed separately) and numbered port strips with measured spacing and a printable mm ruler.
+- **Tape colours**: pick the tape and print colour to preview the real result.
 - **Layers**: a tree with nested groups, drag-and-drop ordering, rename, hide, lock.
 - **Layout**: multi-selection, six-way align, distribute, magnetic snapping to objects,
   margins and label edges (each switchable), toggleable margin guides, rulers.

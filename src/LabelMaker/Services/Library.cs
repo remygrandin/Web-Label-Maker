@@ -113,13 +113,9 @@ public sealed class Library
     static LabelDocument Pack(LabelDocument d)
     {
         var used = Geo.Walk(d.Nodes).OfType<ImageNode>().Select(i => i.AssetId).ToHashSet();
-        return new LabelDocument
-        {
-            Id = d.Id, Name = d.Name, MediaId = d.MediaId, WidthMm = d.WidthMm, HeightMm = d.HeightMm, AutoWidth = d.AutoWidth,
-            Dpi = d.Dpi, Margins = d.Margins, Nodes = d.Nodes, Modified = d.Modified,
-            Variables = d.Variables, Counter = d.Counter, Cuts = d.Cuts,
-            Assets = d.Assets.Where(a => used.Contains(a.Key)).ToDictionary(a => a.Key, a => a.Value),
-        };
+        var copy = d.ShallowCopy();
+        copy.Assets = d.Assets.Where(a => used.Contains(a.Key)).ToDictionary(a => a.Key, a => a.Value);
+        return copy;
     }
 
     // ---- library ---------------------------------------------------------------------------

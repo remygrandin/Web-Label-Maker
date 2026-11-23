@@ -443,3 +443,9 @@ input, textarea { user-select: text; }
 .autosave { color: var(--ink-3); font: 10.5px var(--mono); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; }
 .autosave i { width: 6px; height: 6px; border-radius: 50%; background: #2e9d4e; }
 .autosave.pending i { background: var(--accent); }
+.tape-chip { width: 30px; height: 24px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 2px; font: 600 12px var(--sans); }
+.seg > button:disabled { opacity: .45; cursor: default; }
+.seg > button.on:disabled { opacity: .8; }
+.measure { margin-top: 10px; padding: 8px; border: 1px solid var(--line); background: var(--panel-2); }
+.measure .row > span { color: var(--ink-2); white-space: nowrap; font-size: 11px; }
+.sect > .seg.fill > button { padding: 0 4px; }

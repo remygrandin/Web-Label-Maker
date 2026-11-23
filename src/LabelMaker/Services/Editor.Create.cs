@@ -112,7 +112,7 @@ public sealed partial class Editor
     void FinishCreate(double wx, double wy, bool shift, bool dragged)
     {
         var node = MakeNode();
-        var tool = Tool;
+        var rect = CreateRect(wx, wy, shift); // while the tool (and its aspect lock) is still armed
         Tool = null;
         _pendingImage = null;
         if (node is null) { Refresh(); return; }
@@ -136,7 +136,7 @@ public sealed partial class Editor
         }
         else
         {
-            var r = CreateRect(wx, wy, shift);
+            var r = rect;
             node.X = r.X; node.Y = r.Y;
             node.W = Math.Max(0.5, r.W); node.H = Math.Max(0.5, r.H);
             // a dragged-out text box has a fixed width and wraps

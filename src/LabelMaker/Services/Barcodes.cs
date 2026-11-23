@@ -12,6 +12,10 @@ namespace LabelMaker.Services;
 public static class Barcodes
 {
     static readonly Dictionary<string, string?> Done = new(); // key -> error (null = ok)
+    static readonly Dictionary<string, (int W, int H)> Sizes = new(); // key -> module matrix size, quiet zone included
+
+    /// <summary>Size of the encoded symbol in modules, or null when it could not be encoded.</summary>
+    public static (int W, int H)? Size(BarcodeNode n) => Sizes.TryGetValue(Key(n), out var s) ? s : null;
 
     // must match matrixKey() in lm.render.js
     public static string Key(BarcodeNode n) => $"{n.Format}|{n.Ecc}|{(n.QuietZone ? 1 : 0)}|{n.Value}";
@@ -54,6 +58,7 @@ public static class Barcodes
                     if (m[x, y]) bits[(y + qy) * w + x + qx] = 1;
             js.InvokeVoid("LM.setMatrix", key, w, h, bits, null);
             Done[key] = null;
+            Sizes[key] = (w, h);
         }
         catch (Exception ex)
         {

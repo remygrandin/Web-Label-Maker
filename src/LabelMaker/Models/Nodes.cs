@@ -54,6 +54,8 @@ public abstract class Node
     public double W { get; set; } = 10;
     public double H { get; set; } = 10;
     public double Rotation { get; set; }
+    /// <summary>Resizing keeps the width/height ratio.</summary>
+    public bool LockAspect { get; set; }
     /// <summary>Numeric properties driven by an expression: property name → expression.</summary>
     public Dictionary<string, string>? Bindings { get; set; }
 
@@ -97,13 +99,14 @@ public sealed class ShapeNode : Node
 
 public sealed class ImageNode : Node
 {
+    public ImageNode() => LockAspect = true;
+
     public string AssetId { get; set; } = "";
     public DitherMode Dither { get; set; } = DitherMode.FloydSteinberg;
     public int Threshold { get; set; } = 128;
     public int Brightness { get; set; }
     public int Contrast { get; set; }
     public bool Invert { get; set; }
-    public bool LockAspect { get; set; } = true;
 }
 
 public sealed class BarcodeNode : Node

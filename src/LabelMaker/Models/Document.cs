@@ -35,9 +35,17 @@ public sealed class LabelDocument
     public List<Variable> Variables { get; set; } = new();
     /// <summary>Backs the {seq} macro; advances with every printed label.</summary>
     public Counter Counter { get; set; } = new();
+    /// <summary>Tape (background) colour id, see <see cref="Media.TapeColors"/>. Preview only: the printer prints what is loaded.</summary>
+    public string TapeColor { get; set; } = "white";
+    /// <summary>Print (foreground) colour id, see <see cref="Media.InkColors"/>.</summary>
+    public string InkColor { get; set; } = "black";
+    /// <summary>Cable wrap, flag or port strip arrangement.</summary>
+    public LabelLayout Layout { get; set; } = new();
     /// <summary>Places along the label where the tape is cut.</summary>
     public List<CutMark> Cuts { get; set; } = new();
     public DateTime Modified { get; set; } = DateTime.UtcNow;
+
+    public LabelDocument ShallowCopy() => (LabelDocument)MemberwiseClone();
 }
 
 /// <summary>A tape or label stock a document can be laid out on.</summary>
@@ -59,6 +67,23 @@ public static class Media
     ];
 
     public static MediaInfo Get(string id) => All.FirstOrDefault(m => m.Id == id) ?? All[3];
+
+    // The usual TZe tape and print colours. They only tint the preview.
+    public static readonly ColorOption[] TapeColors =
+    [
+        new("white", "White", "#ffffff"), new("clear", "Clear", "#eef0ee"), new("yellow", "Yellow", "#ffd400"),
+        new("black", "Black", "#141414"), new("red", "Red", "#d6262c"), new("blue", "Blue", "#1d5fc2"),
+        new("green", "Green", "#1f9a4c"), new("orange", "Fluorescent orange", "#ff7a1c"), new("pink", "Pink", "#f3a6c4"),
+        new("gray", "Gray", "#b7babf"), new("silver", "Matte silver", "#cfd2d6"), new("gold", "Satin gold", "#d9bf74"),
+    ];
+
+    public static readonly ColorOption[] InkColors =
+    [
+        new("black", "Black", "#000000"), new("white", "White", "#ffffff"), new("red", "Red", "#d6262c"),
+        new("blue", "Blue", "#1d5fc2"), new("gold", "Gold", "#b8922e"),
+    ];
+
+    public static string Hex(ColorOption[] set, string id) => (set.FirstOrDefault(c => c.Id == id) ?? set[0]).Hex;
 
     /// <summary>Margins matching what the printer cannot reach on this tape.</summary>
     public static Margins DefaultMargins(MediaInfo m)
@@ -121,3 +146,34 @@ public sealed class CutMark
     /// <summary>Half cut: the tape is cut but the backing is left whole.</summary>
     public bool Half { get; set; }
 }
+
+/// <summary>
+/// Special arrangements for cabling work. "wrap" repeats the first cell along the
+/// tape; "flag" folds around a cable with a face either side; "ports" is a strip of
+/// evenly spaced cells for a row of sockets.
+/// </summary>
+public sealed class LabelLayout
+{
+    /// <summary>"none", "wrap", "flag" or "ports".</summary>
+    public string Kind { get; set; } = "none";
+    /// <summary>Cable diameter, mm (wrap and flag).</summary>
+    public double Diameter { get; set; } = 6;
+    /// <summary>Wrap: width of one repeated cell.</summary>
+    public double Pitch { get; set; } = 5;
+    /// <summary>Flag: length of each face.</summary>
+    public double FlagLength { get; set; } = 25;
+    /// <summary>Flag: the second face repeats the first.</summary>
+    public bool Mirror { get; set; } = true;
+    /// <summary>Flag: print the fold lines as dotted lines.</summary>
+    public bool PrintGuides { get; set; }
+    /// <summary>Ports: distance between the left edges of neighbouring ports, mm.</summary>
+    public double PortPitch { get; set; } = 16;
+    public int Ports { get; set; } = 8;
+    public int First { get; set; } = 1;
+    public string Prefix { get; set; } = "";
+    public bool Separators { get; set; } = true;
+
+    public LabelLayout Clone() => (LabelLayout)MemberwiseClone();
+}
+
+public sealed record ColorOption(string Id, string Label, string Hex);

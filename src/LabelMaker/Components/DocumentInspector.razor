@@ -1,6 +1,6 @@
 @inherits EditorComponent
 
-@{ var doc = Ed.Doc; var media = Media.Get(doc.MediaId); var m = doc.Margins; }
+@{ var doc = Ed.Doc; var media = Media.Get(doc.MediaId); var m = doc.Margins; bool inLayout = doc.Layout.Kind != "none"; }
 
 <div class="sect">
     <div class="sect-title">Tape</div>
@@ -14,17 +14,28 @@
         </select>
     </div>
     <div class="row">
+        <span class="lbl">Colours</span>
+        <select class="sel fill" title="Tape colour (preview only: the printer prints on whatever tape is loaded)" value="@doc.TapeColor" @onchange="e => Ed.Mutate(() => doc.TapeColor = e.Value!.ToString()!)">
+            @foreach (var c in Media.TapeColors) { <option value="@c.Id">@c.Label tape</option> }
+        </select>
+        <select class="sel fill" title="Print colour" value="@doc.InkColor" @onchange="e => Ed.Mutate(() => doc.InkColor = e.Value!.ToString()!)">
+            @foreach (var c in Media.InkColors) { <option value="@c.Id">@c.Label print</option> }
+        </select>
+        <span class="tape-chip" title="@Media.InkColors.First(c => c.Id == doc.InkColor).Label on @Media.TapeColors.First(c => c.Id == doc.TapeColor).Label.ToLowerInvariant()"
+              style="background:@Media.Hex(Media.TapeColors, doc.TapeColor);color:@Media.Hex(Media.InkColors, doc.InkColor)">Aa</span>
+    </div>
+    <div class="row">
         <span class="lbl">Length</span>
         <div class="seg fill">
-            <button class="@(doc.AutoWidth ? "" : "on")" title="The label keeps the length you set" @onclick="() => SetAuto(false)">Fixed</button>
-            <button class="@(doc.AutoWidth ? "on" : "")" title="The label grows and shrinks to fit its content" @onclick="() => SetAuto(true)">Auto</button>
+            <button class="@(doc.AutoWidth || inLayout ? "" : "on")" disabled="@inLayout" title="The label keeps the length you set" @onclick="() => SetAuto(false)">Fixed</button>
+            <button class="@(doc.AutoWidth && !inLayout ? "on" : "")" disabled="@inLayout" title="The label grows and shrinks to fit its content" @onclick="() => SetAuto(true)">Auto</button>
         </div>
     </div>
     <div class="row">
         <span class="lbl"></span>
         <div class="fill">
-            <NumberField Unit="mm" Value="doc.WidthMm" Min="5" Max="1000" Step="1" Decimals="1" Disabled="doc.AutoWidth"
-                         Title="@(doc.AutoWidth ? "Set by the content, plus the right margin" : "Label length")"
+            <NumberField Unit="mm" Value="doc.WidthMm" Min="5" Max="1000" Step="1" Decimals="1" Disabled="doc.AutoWidth || inLayout"
+                         Title="@(inLayout ? "Set by the layout below" : doc.AutoWidth ? "Set by the content, plus the right margin" : "Label length")"
                          ValueChanged="v => { Ed.Mutate(() => doc.WidthMm = v); Ed.ZoomToFit(); }" />
         </div>
     </div>
@@ -33,6 +44,8 @@
         At @doc.Dpi dpi this label is @Px(doc.WidthMm) × @Px(doc.HeightMm) dots.
     </div>
 </div>
+
+<LayoutSection />
 
 <div class="sect">
     <div class="sect-title">

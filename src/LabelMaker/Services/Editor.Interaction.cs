@@ -106,7 +106,7 @@ public sealed partial class Editor
         Selection.AddRange(nodes.Select(n => n.Id));
     }
 
-    static bool NeedsUniform(Node n) => n is TextNode { Mode: TextMode.Auto } or BarcodeNode { Is2D: true } or ImageNode { LockAspect: true };
+    static bool NeedsUniform(Node n) => n.LockAspect || n is TextNode { Mode: TextMode.Auto } or BarcodeNode { Is2D: true };
 
     void BeginTransform()
     {

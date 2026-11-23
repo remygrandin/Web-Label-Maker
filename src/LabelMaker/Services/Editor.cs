@@ -22,6 +22,12 @@ public sealed class RenderFrame
     public List<HandleDot> Handles { get; set; } = new();
     public double[]? Marquee { get; set; }
     public List<CutMark> Cuts { get; set; } = new();
+    /// <summary>Layout guide lines (x positions, mm) and labelled zones; shown, never printed.</summary>
+    public List<double> Dividers { get; set; } = new();
+    public List<LayoutZone> Zones { get; set; } = new();
+    /// <summary>Tape and print colours as hex, for the preview.</summary>
+    public string Tape { get; set; } = "#ffffff";
+    public string Ink { get; set; } = "#000000";
 }
 
 public sealed record GuideLine(bool V, double Pos);
@@ -184,14 +190,21 @@ public sealed partial class Editor
                 switch (n)
                 {
                     case TextNode { Mode: TextMode.Auto } t: Remeasure(t); break;
-                    case BarcodeNode code: Barcodes.Ensure((BarcodeNode)Resolved(code), _js); break;
+                    case BarcodeNode code:
+                    {
+                        var shown = (BarcodeNode)Resolved(code);
+                        Barcodes.Ensure(shown, _js);
+                        FitCodeBox(code, shown, doc.Dpi);
+                        break;
+                    }
                 }
             }
         }
         finally { _evalDoc = null; }
         foreach (var (id, url) in doc.Assets)
             if (_sentAssets.Add(id)) _js.InvokeVoid("LM.setAsset", id, url);
-        if (doc.AutoWidth && Geo.Bounds(doc.Nodes.Where(n => n.Visible)) is { } b)
+        if (LayoutWidth(doc) is { } fixedWidth) doc.WidthMm = Math.Max(5, Math.Round(fixedWidth, 1));
+        else if (doc.AutoWidth && Geo.Bounds(doc.Nodes.Where(n => n.Visible)) is { } b)
             doc.WidthMm = Math.Max(8, Math.Round(b.R + doc.Margins.R, 1));
     }
 
@@ -222,12 +235,16 @@ public sealed partial class Editor
         public List<Variable> Variables { get; set; } = new();
         public Counter Counter { get; set; } = new();
         public List<CutMark> Cuts { get; set; } = new();
+        public string TapeColor { get; set; } = "white";
+        public string InkColor { get; set; } = "black";
+        public LabelLayout Layout { get; set; } = new();
     }
 
     string Snapshot() => DocJson.Write(new DocState
     {
         MediaId = Doc.MediaId, WidthMm = Doc.WidthMm, HeightMm = Doc.HeightMm, AutoWidth = Doc.AutoWidth,
         Dpi = Doc.Dpi, Margins = Doc.Margins, Nodes = Doc.Nodes, Variables = Doc.Variables, Counter = Doc.Counter, Cuts = Doc.Cuts,
+        TapeColor = Doc.TapeColor, InkColor = Doc.InkColor, Layout = Doc.Layout,
     });
 
     void Restore(string snapshot)
@@ -236,6 +253,7 @@ public sealed partial class Editor
         Doc.MediaId = s.MediaId; Doc.WidthMm = s.WidthMm; Doc.HeightMm = s.HeightMm; Doc.AutoWidth = s.AutoWidth;
         Doc.Dpi = s.Dpi; Doc.Margins = s.Margins; Doc.Nodes = s.Nodes;
         Doc.Variables = s.Variables; Doc.Counter = s.Counter; Doc.Cuts = s.Cuts;
+        Doc.TapeColor = s.TapeColor; Doc.InkColor = s.InkColor; Doc.Layout = s.Layout;
         Selection.RemoveAll(id => Find(id) is null);
         if (Find(ScopeId) is null) ScopeId = null;
     }
@@ -365,10 +383,13 @@ public sealed partial class Editor
         _evalDoc = doc;
         try
         {
+            var items = (doc == Doc ? VisibleLeaves() : VisibleLeavesOf(doc.Nodes)).Select(l => Resolved(l.Node)).ToList();
+            items.AddRange(LayoutCopies(doc, items).ToList());
             return new RenderFrame
             {
                 Zoom = 1, DocW = doc.WidthMm, DocH = doc.HeightMm, Dpi = doc.Dpi, Margins = doc.Margins, Cuts = doc.Cuts,
-                Items = (doc == Doc ? VisibleLeaves() : VisibleLeavesOf(doc.Nodes)).Select(l => Resolved(l.Node)).ToList(),
+                Items = items, Dividers = Dividers(doc), Zones = Zones(doc),
+                Tape = Media.Hex(Media.TapeColors, doc.TapeColor), Ink = Media.Hex(Media.InkColors, doc.InkColor),
             };
         }
         finally { _evalDoc = null; }

@@ -38,13 +38,17 @@
             {
                 bool auto = one is TextNode { Mode: TextMode.Auto };
                 bool line = one is ShapeNode { Kind: ShapeKind.Line };
+                bool forced = auto || one is BarcodeNode { Is2D: true };
                 <div class="grid2">
                     <BoundField Node="one" Prop="X" Label="X" Unit="mm" Step="0.5" />
                     <BoundField Node="one" Prop="Y" Label="Y" Unit="mm" Step="0.5" />
                 </div>
-                <div class="grid2">
-                    <BoundField Node="one" Prop="W" Label="W" Unit="mm" Apply="v => SetSize(one, v, true)" Min="0.3" Step="0.5" Disabled="auto" />
-                    <BoundField Node="one" Prop="H" Label="H" Unit="mm" Apply="v => SetSize(one, v, false)" Min="0.3" Step="0.5" Disabled="auto || line" />
+                <div class="row">
+                    <div class="fill"><BoundField Node="one" Prop="W" Label="W" Unit="mm" Apply="v => SetSize(one, v, true)" Min="0.3" Step="0.5" Disabled="auto" /></div>
+                    <button class="ibtn sm @(one.LockAspect || forced ? "on" : "")" disabled="@(forced || line)"
+                            title="@(forced ? "Proportions are always kept for this object" : one.LockAspect ? "Proportions locked: width and height change together. Click to unlock." : "Lock proportions")"
+                            @onclick="() => Ed.Mutate(() => one.LockAspect = !one.LockAspect)"><Icon Name="link" /></button>
+                    <div class="fill"><BoundField Node="one" Prop="H" Label="H" Unit="mm" Apply="v => SetSize(one, v, false)" Min="0.3" Step="0.5" Disabled="auto || line" /></div>
                 </div>
                 <div class="grid2">
                     <BoundField Node="one" Prop="Rotation" Label="∠" Unit="°" Apply="v => Rotate(one, v)" Step="15" Decimals="1" />
@@ -90,7 +94,7 @@
 
     void SetSize(Node n, double v, bool width) => Ed.Mutate(() =>
     {
-        bool uniform = n is BarcodeNode { Is2D: true } or ImageNode { LockAspect: true };
+        bool uniform = n.LockAspect || n is BarcodeNode { Is2D: true };
         double k = v / (width ? n.W : n.H);
         if (width || uniform) n.W = width ? v : n.W * k;
         if (!width || uniform) n.H = width ? n.H * k : v;

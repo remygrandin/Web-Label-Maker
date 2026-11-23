@@ -341,6 +341,26 @@
         }
     }
 
+    // ---- tape colours ----------------------------------------------------------------
+    // Everything is drawn black on white (what the print head sees). For the preview,
+    // map that onto the chosen print colour and tape colour.
+    const rgb = (hex) => { const v = parseInt(String(hex || '').replace('#', ''), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; };
+
+    function recolor(ctx, x, y, w, h, tape, ink) {
+        if (!tape || !ink || (tape.toLowerCase() === '#ffffff' && ink === '#000000')) return;
+        const cw = ctx.canvas.width, ch = ctx.canvas.height;
+        const x0 = Math.max(0, Math.round(x)), y0 = Math.max(0, Math.round(y));
+        const x1 = Math.min(cw, Math.round(x + w)), y1 = Math.min(ch, Math.round(y + h));
+        if (x1 <= x0 || y1 <= y0) return;
+        const id = ctx.getImageData(x0, y0, x1 - x0, y1 - y0), d = id.data;
+        const [tr, tg, tb] = rgb(tape), [ir, ig, ib] = rgb(ink);
+        for (let i = 0; i < d.length; i += 4) {
+            const k = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255; // 0 = ink, 1 = tape
+            d[i] = ir + (tr - ir) * k; d[i + 1] = ig + (tg - ig) * k; d[i + 2] = ib + (tb - ib) * k;
+        }
+        ctx.putImageData(id, x0, y0);
+    }
+
     // ---- editor canvas -----------------------------------------------------------
     function theme() {
         const cs = getComputedStyle(document.documentElement);
@@ -407,6 +427,7 @@
         ctx.translate(f.panX, f.panY);
         drawItems(ctx, f, z, false);
         ctx.restore();
+        recolor(ctx, px * dpr, py * dpr, pw * dpr, ph * dpr, f.tape, f.ink);
 
         // ghost whatever hangs off the label: it will not print
         ctx.save();
@@ -426,6 +447,22 @@
                 ctx.restore();
             }
         }
+
+        // layout guides: zones the layout fills in by itself, and fold / cell lines
+        ctx.save();
+        ctx.font = '500 9px "IBM Plex Mono", monospace'; ctx.textBaseline = 'alphabetic';
+        for (const q of f.zones || []) {
+            const x = Math.round(f.panX + q.x * z), w = Math.round(q.w * z);
+            ctx.globalAlpha = 0.1; ctx.fillStyle = t.guide; ctx.fillRect(x, py, w, ph);
+            ctx.globalAlpha = 1;
+            if (ctx.measureText(q.label).width < w - 6) ctx.fillText(q.label, x + 4, py + ph + 13);
+        }
+        ctx.strokeStyle = t.guide; ctx.lineWidth = 1; ctx.setLineDash([1, 3]);
+        for (const d of f.dividers || []) {
+            const x = Math.round(f.panX + d * z) + 0.5;
+            ctx.beginPath(); ctx.moveTo(x, py - 6); ctx.lineTo(x, py + ph + 6); ctx.stroke();
+        }
+        ctx.restore();
 
         // cut marks: a line across the tape with a tab above it to grab
         for (const c of f.cuts || []) {
@@ -483,6 +520,7 @@
         const ctx = c.getContext('2d', { willReadFrequently: true });
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
         drawItems(ctx, frame, s, print);
+        if (!print) recolor(ctx, 0, 0, c.width, c.height, frame.tape, frame.ink);
         return c;
     }
 

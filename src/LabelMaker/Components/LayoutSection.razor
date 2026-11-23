@@ -1,0 +1,137 @@
+@inherits EditorComponent
+@inject Library Lib
+
+@{ var l = Ed.Doc.Layout; }
+
+<div class="sect">
+    <div class="sect-title">Layout</div>
+    <div class="seg fill">
+        <button class="@On("none")" title="A plain label" @onclick='() => Ed.SetLayout("none")'>Plain</button>
+        <button class="@On("wrap")" title="Wraps round a cable: content turned 90° and repeated so it reads from any side" @onclick='() => Ed.SetLayout("wrap")'>Cable wrap</button>
+        <button class="@On("flag")" title="Folds round a cable with a readable face either side" @onclick='() => Ed.SetLayout("flag")'>Flag</button>
+        <button class="@On("ports")" title="A numbered strip for a row of RJ45 or other ports" @onclick='() => Ed.SetLayout("ports")'>Ports</button>
+    </div>
+
+    @switch (l.Kind)
+    {
+        case "wrap":
+            <div class="row">
+                <span class="lbl">Cable Ø</span>
+                <div class="fill"><NumberField Unit="mm" Value="l.Diameter" Min="1" Max="100" Step="0.5" Decimals="1" ValueChanged="v => Ed.UpdateLayout(x => x.Diameter = v)" /></div>
+            </div>
+            <div class="row">
+                <span class="lbl">Repeat every</span>
+                <div class="fill"><NumberField Unit="mm" Value="l.Pitch" Min="2" Max="100" Step="0.5" Decimals="1" ValueChanged="v => Ed.UpdateLayout(x => x.Pitch = v)" /></div>
+            </div>
+            <div class="hint">
+                Design the first cell; it repeats @Editor.WrapCount(l)× to cover the @F(Editor.Circumference(l)) mm circumference.
+                Turn content 90° (Geometry → +90°) so it reads along the cable.
+            </div>
+            break;
+
+        case "flag":
+            <div class="row">
+                <span class="lbl">Cable Ø</span>
+                <div class="fill"><NumberField Unit="mm" Value="l.Diameter" Min="0" Max="100" Step="0.5" Decimals="1" Title="0 gives a single fold line in the middle" ValueChanged="v => Ed.UpdateLayout(x => x.Diameter = v)" /></div>
+            </div>
+            <div class="row">
+                <span class="lbl">Face length</span>
+                <div class="fill"><NumberField Unit="mm" Value="l.FlagLength" Min="5" Max="300" Step="1" Decimals="1" ValueChanged="v => Ed.UpdateLayout(x => x.FlagLength = v)" /></div>
+            </div>
+            <div class="row">
+                <span class="lbl">Side B</span>
+                <div class="seg fill">
+                    <button class="@(l.Mirror ? "on" : "")" title="Side B repeats side A automatically" @onclick="() => Ed.UpdateLayout(x => x.Mirror = true)">Same as A</button>
+                    <button class="@(l.Mirror ? "" : "on")" title="Design side B yourself, right of the fold" @onclick="() => Ed.UpdateLayout(x => x.Mirror = false)">Different</button>
+                </div>
+            </div>
+            <div class="row">
+                <span class="lbl"></span>
+                <label class="check">
+                    <input type="checkbox" checked="@l.PrintGuides" @onchange="e => Ed.UpdateLayout(x => x.PrintGuides = (bool)e.Value!)" /><i></i>
+                    Print the fold lines
+                </label>
+            </div>
+            <div class="hint">
+                The dotted lines mark where the label folds round the cable (@F(Editor.Circumference(l)) mm between the faces).
+                @(l.Mirror ? "Design side A on the left; side B copies it." : "Design each face on its own side of the fold.")
+            </div>
+            break;
+
+        case "ports":
+            <div class="grid2" style="margin-top:6px">
+                <NumberField Label="PORTS" Value="l.Ports" Min="1" Max="96" Step="1" Decimals="0" ValueChanged="v => Ed.UpdateLayout(x => x.Ports = (int)v)" />
+                <NumberField Label="FROM" Value="l.First" Min="0" Max="9999" Step="1" Decimals="0" Title="Number of the first port" ValueChanged="v => Ed.UpdateLayout(x => x.First = (int)v)" />
+            </div>
+            <div class="row">
+                <span class="lbl">Spacing</span>
+                <div class="fill">
+                    <NumberField Unit="mm" Value="l.PortPitch" Min="3" Max="100" Step="0.1" Decimals="2" Title="Distance from the left edge of one port to the left edge of the next"
+                                 ValueChanged="v => Ed.UpdateLayout(x => x.PortPitch = v)" />
+                </div>
+            </div>
+            <div class="row">
+                <span class="lbl">Prefix</span>
+                <input class="inp fill" spellcheck="false" placeholder="e.g. P or A-" value="@l.Prefix" @onchange="e => Ed.UpdateLayout(x => x.Prefix = e.Value?.ToString() ?? string.Empty)" />
+            </div>
+            <div class="row">
+                <span class="lbl"></span>
+                <label class="check">
+                    <input type="checkbox" checked="@l.Separators" @onchange="e => Ed.UpdateLayout(x => x.Separators = (bool)e.Value!)" /><i></i>
+                    Lines between ports
+                </label>
+            </div>
+
+            <div class="measure">
+                <div class="sect-title" style="margin:0 0 6px">Measure the spacing</div>
+                <div class="row">
+                    <div class="fill"><NumberField Unit="mm" Value="_measured" Min="1" Max="2000" Step="0.5" Decimals="1" Title="Distance you measured between the two ports' left edges" ValueChanged="v => _measured = v" /></div>
+                    <span>from port</span>
+                    <div style="width:44px"><NumberField Value="_from" Min="1" Max="96" Step="1" Decimals="0" ValueChanged="v => _from = (int)v" /></div>
+                    <span>to</span>
+                    <div style="width:44px"><NumberField Value="_to" Min="1" Max="96" Step="1" Decimals="0" ValueChanged="v => _to = (int)v" /></div>
+                </div>
+                <div class="row">
+                    <button class="btn sm" disabled="@(_to == _from)" title="Divide the measured distance by the number of port gaps it spans" @onclick="UseMeasure">
+                        Use @F2(Computed) mm spacing
+                    </button>
+                    <span class="grow" style="flex:1"></span>
+                    <button class="btn sm" title="Opens a new label with a millimetre scale to stick on the panel. Your current label is kept." @onclick="MakeRuler">
+                        <Icon Name="margins" />Print a ruler…
+                    </button>
+                </div>
+                <div class="hint">
+                    Measuring across several ports divides the reading error: stick the ruler with 0 on the left edge of port 1,
+                    read where the left edge of port 4 falls, and enter it here.
+                </div>
+            </div>
+            <div class="hint">Port captions are ordinary text: double-click one to rename it. Changing the settings keeps renamed captions.</div>
+            break;
+    }
+</div>
+
+@code {
+    double _measured = 48;
+    int _from = 1, _to = 4;
+
+    double Computed => _to == _from ? 0 : _measured / Math.Abs(_to - _from);
+
+    string On(string kind) => Ed.Doc.Layout.Kind == kind ? "on" : "";
+
+    static string F(double v) => v.ToString("0.#", CultureInfo.InvariantCulture);
+    static string F2(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+    void UseMeasure()
+    {
+        double pitch = Math.Round(Computed, 2);
+        Ed.UpdateLayout(x => x.PortPitch = pitch);
+    }
+
+    async Task MakeRuler()
+    {
+        // long enough to span the measurement, rounded up to a whole 10 mm
+        double span = Math.Max(_measured, Ed.Doc.Layout.PortPitch * Math.Max(1, Math.Abs(_to - _from)));
+        await Lib.New(Ed.BuildRuler(Math.Ceiling((span + 10) / 10) * 10));
+        Shell.Toast("Ruler label ready. Print it, measure, then reopen your strip from File → Open from library.");
+    }
+}
