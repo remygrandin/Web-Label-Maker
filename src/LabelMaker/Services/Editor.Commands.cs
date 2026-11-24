@@ -361,7 +361,7 @@ public sealed partial class Editor
             }
             if (along)
             {
-                if (!Doc.AutoWidth) Doc.WidthMm = Math.Max(5, Math.Round(left + (Doc.WidthMm - left - Doc.Margins.R) * k + Doc.Margins.R, 1));
+                if (!Doc.AutoWidth) Doc.WidthMm = Math.Max(1, Math.Round(left + (Doc.WidthMm - left - Doc.Margins.R) * k + Doc.Margins.R, 1));
                 foreach (var c in Doc.Cuts) c.X = Math.Round(left + (c.X - left) * k, 1);
             }
             else if (layout == "ports") BuildPorts(null);

@@ -55,7 +55,7 @@
     <div class="row">
         <span class="lbl"></span>
         <div class="fill">
-            <NumberField Unit="mm" Value="doc.WidthMm" Min="5" Max="1000" Step="1" Decimals="1" Disabled="doc.AutoWidth || inLayout"
+            <NumberField Unit="mm" Value="doc.WidthMm" Min="1" Max="1000" Step="1" Decimals="1" Disabled="doc.AutoWidth || inLayout"
                          Title="@(inLayout ? "Set by the layout below" : doc.AutoWidth ? "Set by the content, plus the right margin" : "Label length")"
                          ValueChanged="v => { Ed.Mutate(() => doc.WidthMm = v); Ed.ZoomToFit(); }" />
         </div>

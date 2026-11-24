@@ -20,8 +20,8 @@
             <BoundField Node="Node" Prop="FontSize" Unit="pt" Min="2" Max="400" Step="0.5" Decimals="1" Disabled="Node.Mode == TextMode.Fit" Title="Font size" />
         </div>
         <div class="seg">
-            <button class="size-step" disabled="@(Node.Mode == TextMode.Fit)" title="Smaller text" @onclick="() => Resize(-1)">A<sub>−</sub></button>
-            <button class="size-step big" disabled="@(Node.Mode == TextMode.Fit)" title="Bigger text" @onclick="() => Resize(1)">A<sup>+</sup></button>
+            <button class="size-step" disabled="@(Node.Mode == TextMode.Fit)" title="Smaller text" @onclick="() => Resize(-1)">A−</button>
+            <button class="size-step big" disabled="@(Node.Mode == TextMode.Fit)" title="Bigger text" @onclick="() => Resize(1)">A+</button>
         </div>
     </div>
     <div class="row">

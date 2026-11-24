@@ -498,6 +498,6 @@ input, textarea { user-select: text; }
 .about a { color: var(--accent); }
 
 /* ---------- text size steps ---------- */
-.seg .size-step { font-weight: 600; font-size: 11px; min-width: 28px; }
+.seg .size-step { font-weight: 600; font-size: 11px; min-width: 32px; white-space: nowrap; }
 .seg .size-step.big { font-size: 14px; }
 .seg .size-step sub, .seg .size-step sup { font-size: 9px; font-weight: 500; line-height: 0; }
