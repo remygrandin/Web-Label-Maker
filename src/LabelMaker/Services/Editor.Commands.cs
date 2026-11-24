@@ -299,20 +299,56 @@ public sealed partial class Editor
 
     // ---- document settings ---------------------------------------------------------------------
 
-    public void SetMedia(string mediaId)
+    /// <summary>
+    /// Switch tape. With <paramref name="scale"/> the content is resized in proportion to the
+    /// printable height (and the label length with it); otherwise it keeps its size and is re-centred.
+    /// </summary>
+    public void SetMedia(string mediaId, bool scale = false)
     {
         var m = Media.Get(mediaId);
         Mutate(() =>
         {
-            double oldH = Doc.HeightMm;
+            double oldH = Doc.HeightMm, oldTop = Doc.Margins.T, oldUsable = Math.Max(0.1, UsableHeight);
             Doc.MediaId = m.Id;
             Doc.HeightMm = m.WidthMm;
             Doc.Dpi = Brother.Model(Settings.PrinterModel).Dpi;
             var d = Media.DefaultMargins(m);
             Doc.Margins.T = d.T; Doc.Margins.B = d.B;
-            // keep content vertically centred on the new tape
-            double dy = (m.WidthMm - oldH) / 2;
-            foreach (var n in Doc.Nodes) Geo.Translate(n, 0, dy);
+            double k = Math.Max(0.1, UsableHeight) / oldUsable;
+            if (!scale || Math.Abs(k - 1) < 1e-6)
+            {
+                // keep content vertically centred on the new tape
+                double dy = (m.WidthMm - oldH) / 2;
+                foreach (var n in Doc.Nodes) Geo.Translate(n, 0, dy);
+                return;
+            }
+
+            string layout = Doc.Layout.Kind;
+            // a plain label scales from its left margin; cabling layouts keep their positions along the tape
+            bool along = layout == "none";
+            double left = Doc.Margins.L;
+            foreach (var n in Geo.Walk(Doc.Nodes).Where(n => n is not GroupNode))
+            {
+                double cx = along ? left + (n.Cx - left) * k : n.Cx, cy = Doc.Margins.T + (n.Cy - oldTop) * k;
+                n.W *= k; n.H *= k;
+                n.X = cx - n.W / 2; n.Y = cy - n.H / 2;
+                switch (n)
+                {
+                    case TextNode t: t.FontSize *= k; t.Padding *= k; break;
+                    case ShapeNode s:
+                        s.StrokeWidth *= k;
+                        if (s.CornerRadius < 100) s.CornerRadius *= k;
+                        if (s.Kind == ShapeKind.Line) { n.H = 1; n.Y = cy - 0.5; } // a line's box height is nominal
+                        break;
+                    case TableNode tb: tb.FontSize *= k; tb.Padding *= k; break;
+                }
+            }
+            if (along)
+            {
+                if (!Doc.AutoWidth) Doc.WidthMm = Math.Max(5, Math.Round(left + (Doc.WidthMm - left - Doc.Margins.R) * k + Doc.Margins.R, 1));
+                foreach (var c in Doc.Cuts) c.X = Math.Round(left + (c.X - left) * k, 1);
+            }
+            else if (layout == "ports") BuildPorts(null);
         });
         ZoomToFit();
     }

@@ -32,6 +32,28 @@
     <PrintDialog />
 }
 
+@if (Shell.Asking is { } q)
+{
+    <div class="scrim" style="z-index:80">
+        <div class="dialog narrow">
+            <div class="dhead">
+                <h2>@q.Title</h2>
+                <span class="grow"></span>
+                <button class="ibtn" title="Cancel" @onclick="() => Shell.Answer(-1)"><Icon Name="x" /></button>
+            </div>
+            <div class="dbody" style="line-height:1.5">@q.Text</div>
+            <div class="dfoot">
+                <span class="grow"></span>
+                @for (int i = q.Options.Length - 1; i >= 0; i--)
+                {
+                    int option = i;
+                    <button class="btn @(option == 0 ? "primary" : "")" @onclick="() => Shell.Answer(option)">@q.Options[option]</button>
+                }
+            </div>
+        </div>
+    </div>
+}
+
 @if (Shell.ToastText is { } toast)
 {
     <div class="toast">@toast</div>

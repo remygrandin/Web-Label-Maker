@@ -82,6 +82,42 @@
         all: async (store) => ((await tx(store, 'readonly', s => s.getAll())) || []).map(r => r.json),
     };
 
+    // ---- one working copy per tab ------------------------------------------------------
+    // Each tab autosaves under its own key ("autosave:<tab id>" in "meta"). The id lives in
+    // sessionStorage, so it survives a reload; a Web Lock held for the life of the page tells
+    // other tabs which working copies are in use right now.
+    const LOCK = 'wlm-tab-';
+    const hold = (id) => new Promise((resolve) => {
+        if (!navigator.locks) { resolve(true); return; }
+        navigator.locks.request(LOCK + id, { ifAvailable: true }, (lock) => {
+            resolve(!!lock);
+            return lock ? new Promise(() => { }) : undefined;   // keep it until the tab goes away
+        }).catch(() => resolve(true));
+    });
+
+    // -> { id, cloneOf }: cloneOf is set when this tab was duplicated from another live tab
+    LM.tabInit = async () => {
+        let id = null, cloneOf = null;
+        try { id = sessionStorage.getItem('wlm.tab'); } catch { /* storage unavailable */ }
+        if (id && !(await hold(id))) { cloneOf = id; id = null; }
+        if (!id) {
+            id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+            try { sessionStorage.setItem('wlm.tab', id); } catch { /* ignore */ }
+            await hold(id);
+        }
+        return { id, cloneOf };
+    };
+
+    // Working copies no open tab is using, newest first: [{ id, modified }]
+    LM.orphanAutosaves = async () => {
+        const all = ((await tx('meta', 'readonly', s => s.getAll())) || []).filter(r => String(r.id).startsWith('autosave'));
+        let live = new Set();
+        try { live = new Set(((await navigator.locks?.query())?.held || []).map(l => l.name)); } catch { /* treat all as free */ }
+        return all.filter(r => !live.has(LOCK + String(r.id).slice('autosave:'.length)))
+            .map(r => ({ id: r.id, modified: String(r.modified || '') }))
+            .sort((a, b) => b.modified.localeCompare(a.modified));
+    };
+
     // ---- files -----------------------------------------------------------------------
     LM.download = (name, text, mime) => {
         const url = URL.createObjectURL(new Blob([text], { type: mime || 'application/json' }));

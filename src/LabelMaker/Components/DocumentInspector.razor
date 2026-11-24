@@ -6,7 +6,7 @@
     <div class="sect-title">Tape</div>
     <div class="row">
         <span class="lbl">Width</span>
-        <select class="sel fill" value="@doc.MediaId" @onchange="e => Ed.SetMedia(e.Value!.ToString()!)">
+        <select @key="_tapeKey" class="sel fill" value="@doc.MediaId" @onchange="e => ChangeTape(e.Value!.ToString()!)">
             @foreach (var t in Media.All)
             {
                 <option value="@t.Id">TZe @t.Label</option>
@@ -137,6 +137,22 @@
     int Px(double mm) => (int)Math.Round(mm * Ed.Doc.Dpi / 25.4);
 
     static string VarKey(Variable v) => "var:" + v.Name;
+
+    int _tapeKey;
+
+    // A label with content can either be resized with the tape or keep its sizes: ask.
+    async Task ChangeTape(string id)
+    {
+        if (id == Ed.Doc.MediaId) return;
+        if (Ed.Doc.Nodes.Count == 0) { Ed.SetMedia(id); return; }
+        var from = Media.Get(Ed.Doc.MediaId);
+        var to = Media.Get(id);
+        int answer = await Shell.Ask("Change tape",
+            $"Switching from {from.Label} to {to.Label} tape. Scale the content to fit the new tape, or keep every object at its current size?",
+            "Scale content", "Keep sizes");
+        if (answer < 0) { _tapeKey++; StateHasChanged(); return; } // put the selector back
+        Ed.SetMedia(id, scale: answer == 0);
+    }
 
     void SetAuto(bool auto)
     {

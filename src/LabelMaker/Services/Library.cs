@@ -98,12 +98,59 @@ public sealed class Library
 
     // ---- working copy -------------------------------------------------------------------
 
+    sealed class TabInfo
+    {
+        public string Id { get; set; } = "";
+        public string? CloneOf { get; set; }
+    }
+
+    sealed class Orphan
+    {
+        public string Id { get; set; } = "";
+        public string Modified { get; set; } = "";
+    }
+
+    /// <summary>Where this tab keeps its working label; every open tab has its own.</summary>
+    string _autosaveKey = "autosave";
+
+    /// <summary>
+    /// The working label for this tab: its own after a reload, a copy of the source tab's when
+    /// the tab was duplicated, otherwise the most recent one no open tab is using.
+    /// </summary>
+    async Task<string?> ClaimWorkingCopy()
+    {
+        var tab = await _js.InvokeAsync<TabInfo>("LM.tabInit");
+        _autosaveKey = "autosave:" + tab.Id;
+        var json = await Stored(_js.InvokeAsync<string?>("LM.db.get", "meta", _autosaveKey));
+        if (json is null && tab.CloneOf is not null)
+            json = await _js.InvokeAsync<string?>("LM.db.get", "meta", "autosave:" + tab.CloneOf);
+
+        var orphans = await _js.InvokeAsync<List<Orphan>>("LM.orphanAutosaves") ?? new();
+        orphans.RemoveAll(o => o.Id == _autosaveKey);
+        if (json is null && orphans.Count > 0)
+        {
+            // take over the working copy a closed tab left behind
+            json = await _js.InvokeAsync<string?>("LM.db.get", "meta", orphans[0].Id);
+            if (json is not null)
+            {
+                await _js.InvokeVoidAsync("LM.db.put", "meta", new { id = _autosaveKey, json, modified = DateTime.UtcNow.ToString("o") });
+                await _js.InvokeVoidAsync("LM.db.del", "meta", orphans[0].Id);
+            }
+            orphans.RemoveAt(0);
+        }
+        // working copies of tabs closed long ago are not kept for ever
+        var cutoff = DateTime.UtcNow.AddDays(-30).ToString("o");
+        foreach (var o in orphans.Where(o => o.Modified.Length > 0 && string.CompareOrdinal(o.Modified, cutoff) < 0))
+            await _js.InvokeVoidAsync("LM.db.del", "meta", o.Id);
+        return json;
+    }
+
     /// <summary>Reopen whatever was on the bench last time.</summary>
     public async Task Restore()
     {
         try
         {
-            var json = await Stored(_js.InvokeAsync<string?>("LM.db.get", "meta", "autosave"));
+            var json = await ClaimWorkingCopy();
             if (json is not null && DocJson.Read<WorkingState>(json) is { } state)
             {
                 InLibrary = await _js.InvokeAsync<string?>("LM.db.get", Docs, state.Document.Id) is not null;
@@ -137,7 +184,7 @@ public sealed class Library
         try
         {
             var json = DocJson.Write(new WorkingState { Document = Pack(_ed.Doc), Dirty = _ed.Dirty });
-            await Stored(_js.InvokeAsync<bool>("LM.db.put", "meta", new { id = "autosave", json }));
+            await Stored(_js.InvokeAsync<bool>("LM.db.put", "meta", new { id = _autosaveKey, json, modified = DateTime.UtcNow.ToString("o") }));
             if (InLibrary)
             {
                 await Put(Docs, _ed.Doc);

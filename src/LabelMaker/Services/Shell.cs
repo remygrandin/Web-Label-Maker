@@ -61,6 +61,28 @@ public sealed class Shell
         SaveSettings();
     }
 
+    /// <summary>A question waiting for the user's answer.</summary>
+    public sealed record Question(string Title, string Text, string[] Options, TaskCompletionSource<int> Done);
+
+    public Question? Asking { get; private set; }
+
+    /// <summary>Ask a question with a button per option; returns the chosen index, or -1 when dismissed.</summary>
+    public Task<int> Ask(string title, string text, params string[] options)
+    {
+        Asking?.Done.TrySetResult(-1);
+        Asking = new Question(title, text, options, new TaskCompletionSource<int>());
+        Changed?.Invoke();
+        return Asking.Done.Task;
+    }
+
+    public void Answer(int option)
+    {
+        var q = Asking;
+        Asking = null;
+        Changed?.Invoke();
+        q?.Done.TrySetResult(option);
+    }
+
     public void Open(Dialog d) { Dialog = d; Changed?.Invoke(); }
     public void Close() { Dialog = Dialog.None; Changed?.Invoke(); }
 
