@@ -197,6 +197,7 @@ public sealed partial class Editor
                 return;
             }
             _drag = Drag.Create;
+            BeginCreate();
             return;
         }
 
@@ -285,8 +286,7 @@ public sealed partial class Editor
             }
             case Drag.Create:
             {
-                var r = CreateRect(wx, wy, shift);
-                _marquee = [r.X, r.Y, r.W, r.H];
+                PreviewCreate(wx, wy, shift);
                 Render();
                 return "crosshair";
             }

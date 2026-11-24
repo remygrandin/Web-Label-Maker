@@ -115,14 +115,49 @@ public sealed partial class Editor
         return new Rect(Math.Min(_wx0, _wx0 + dx), Math.Min(_wy0, _wy0 + dy), Math.Abs(dx), Math.Abs(dy));
     }
 
+    /// <summary>The object being dragged out, drawn live until the button is released.</summary>
+    Node? _creating;
+    bool _creatingShown;
+
+    void BeginCreate()
+    {
+        _creating = MakeNode();
+        _creatingShown = false;
+    }
+
+    /// <summary>Follow the pointer with the real object rather than an empty box.</summary>
+    void PreviewCreate(double wx, double wy, bool shift)
+    {
+        if (_creating is null) return;
+        Shape(_creating, wx, wy, shift, dragged: true);
+        if (_creating is BarcodeNode code) Barcodes.Ensure(code, _js);
+        _creatingShown = true;
+    }
+
     void FinishCreate(double wx, double wy, bool shift, bool dragged)
     {
-        var node = MakeNode();
-        var rect = CreateRect(wx, wy, shift); // while the tool (and its aspect lock) is still armed
+        // a plain click gets the untouched default size
+        var node = dragged ? _creating ?? MakeNode() : MakeNode();
+        if (node is not null) Shape(node, wx, wy, shift, dragged); // while the tool (and its aspect lock) is still armed
+        _creating = null;
+        _creatingShown = false;
         Tool = null;
         _pendingImage = null;
         if (node is null) { Refresh(); return; }
 
+        Mutate(() =>
+        {
+            ScopeList.Add(node);
+            Select(node);
+        });
+        if (node is TextNode text) BeginEdit(text, selectAll: true);
+        else if (node is TableNode table) BeginCellEdit(table, 0);
+    }
+
+    /// <summary>Size and place a new object from the drag (or centre it on a click).</summary>
+    void Shape(Node node, double wx, double wy, bool shift, bool dragged)
+    {
+        var rect = CreateRect(wx, wy, shift);
         if (!dragged)
         {
             node.X = _wx0 - node.W / 2;
@@ -148,14 +183,6 @@ public sealed partial class Editor
             // a dragged-out text box has a fixed width and wraps
             if (node is TextNode t) t.Mode = TextMode.Wrap;
         }
-
-        Mutate(() =>
-        {
-            ScopeList.Add(node);
-            Select(node);
-        });
-        if (node is TextNode text) BeginEdit(text, selectAll: true);
-        else if (node is TableNode table) BeginCellEdit(table, 0);
     }
 
     /// <summary>Insert an object without the tool flow (paste, drop): beside existing content, or centred when full.</summary>

@@ -379,6 +379,11 @@ public sealed partial class Editor
         if (_drag is Drag.None or Drag.Resize or Drag.Rotate or Drag.LineEnd)
             f.Handles = Handles().Select(h => new HandleDot(h.Sx, h.Sy, h.Kind != HandleKind.Resize)).ToList();
         f.Marquee = _marquee;
+        if (_drag == Drag.Create && _creatingShown && _creating is { } fresh)
+        {
+            f.Items.Add(Resolved(fresh));
+            f.Sel.Add(new Frame(fresh.Cx, fresh.Cy, fresh.W, fresh.H, fresh.Rotation));
+        }
         _js.InvokeVoid("LM.render", f);
     }
 

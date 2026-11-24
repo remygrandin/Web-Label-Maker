@@ -43,7 +43,7 @@
     </div>
 
     <div style="position:relative">
-        <button class="tool @On("image")" data-tip="Image or icon" @onclick="() => Toggle(6)"><Icon Name="image" /></button>
+        <button class="tool @On("image")" data-tip="Image: from a file or your library (or drop / paste one)" @onclick="() => Toggle(6)"><Icon Name="image" /></button>
         @if (_fly == 6)
         {
             <div class="menu-scrim" @onclick="() => _fly = 0"></div>
@@ -51,10 +51,10 @@
                 <div class="menu-head">Images</div>
                 <button class="menu-item" title="You can also drop or paste a picture onto the label" @onclick="PickImage"><Icon Name="upload" />From a file…</button>
                 <button class="menu-item" @onclick="() => Show(Dialog.Images)"><Icon Name="folder" />From my images…</button>
-                <button class="menu-item" @onclick="() => Show(Dialog.Icons)"><Icon Name="star" />Search icons…</button>
             </div>
         }
     </div>
+    <button class="tool" data-tip="Icons: search the open-source icon sets" @onclick="() => Show(Dialog.Icons)"><Icon Name="icons" /></button>
     <div class="rule"></div>
 
     <div style="position:relative">
