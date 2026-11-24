@@ -505,6 +505,15 @@
     // map that onto the chosen print colour and tape colour.
     const rgb = (hex) => { const v = parseInt(String(hex || '').replace('#', ''), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; };
 
+    // Negative print: swap black and white over the whole label.
+    function negative(ctx, x, y, w, h) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'difference';
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x, y, w, h);
+        ctx.restore();
+    }
+
     function recolor(ctx, x, y, w, h, tape, ink) {
         if (!tape || !ink || (tape.toLowerCase() === '#ffffff' && ink === '#000000')) return;
         const cw = ctx.canvas.width, ch = ctx.canvas.height;
@@ -586,6 +595,7 @@
         ctx.translate(f.panX, f.panY);
         drawItems(ctx, f, z, false);
         ctx.restore();
+        if (f.invert) negative(ctx, px, py, pw, ph);
         recolor(ctx, px * dpr, py * dpr, pw * dpr, ph * dpr, f.tape, f.ink);
 
         // ghost whatever hangs off the label: it will not print
@@ -679,6 +689,7 @@
         const ctx = c.getContext('2d', { willReadFrequently: true });
         ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
         drawItems(ctx, frame, s, print);
+        if (frame.invert) negative(ctx, 0, 0, c.width, c.height);
         if (!print) recolor(ctx, 0, 0, c.width, c.height, frame.tape, frame.ink);
         return c;
     }

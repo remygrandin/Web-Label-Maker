@@ -25,6 +25,13 @@
               style="background:@Media.Hex(Media.TapeColors, doc.TapeColor);color:@Media.Hex(Media.InkColors, doc.InkColor)">Aa</span>
     </div>
     <div class="row">
+        <span class="lbl"></span>
+        <label class="check" title="Prints the whole label solid and leaves the content blank: white on black with standard tape">
+            <input type="checkbox" checked="@doc.Invert" @onchange="e => Ed.Mutate(() => doc.Invert = (bool)e.Value!)" /><i></i>
+            Negative print
+        </label>
+    </div>
+    <div class="row">
         <span class="lbl">Length</span>
         <div class="seg fill">
             <button class="@(doc.AutoWidth || inLayout ? "" : "on")" disabled="@inLayout" title="The label keeps the length you set" @onclick="() => SetAuto(false)">Fixed</button>

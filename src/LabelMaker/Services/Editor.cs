@@ -28,6 +28,8 @@ public sealed class RenderFrame
     /// <summary>Tape and print colours as hex, for the preview.</summary>
     public string Tape { get; set; } = "#ffffff";
     public string Ink { get; set; } = "#000000";
+    /// <summary>Negative print: black and white swapped over the whole label.</summary>
+    public bool Invert { get; set; }
 }
 
 public sealed record GuideLine(bool V, double Pos);
@@ -243,13 +245,14 @@ public sealed partial class Editor
         public string TapeColor { get; set; } = "white";
         public string InkColor { get; set; } = "black";
         public LabelLayout Layout { get; set; } = new();
+        public bool Invert { get; set; }
     }
 
     string Snapshot() => DocJson.Write(new DocState
     {
         MediaId = Doc.MediaId, WidthMm = Doc.WidthMm, HeightMm = Doc.HeightMm, AutoWidth = Doc.AutoWidth,
         Dpi = Doc.Dpi, Margins = Doc.Margins, Nodes = Doc.Nodes, Variables = Doc.Variables, Counter = Doc.Counter, Cuts = Doc.Cuts,
-        TapeColor = Doc.TapeColor, InkColor = Doc.InkColor, Layout = Doc.Layout,
+        TapeColor = Doc.TapeColor, InkColor = Doc.InkColor, Layout = Doc.Layout, Invert = Doc.Invert,
     });
 
     void Restore(string snapshot)
@@ -258,7 +261,7 @@ public sealed partial class Editor
         Doc.MediaId = s.MediaId; Doc.WidthMm = s.WidthMm; Doc.HeightMm = s.HeightMm; Doc.AutoWidth = s.AutoWidth;
         Doc.Dpi = s.Dpi; Doc.Margins = s.Margins; Doc.Nodes = s.Nodes;
         Doc.Variables = s.Variables; Doc.Counter = s.Counter; Doc.Cuts = s.Cuts;
-        Doc.TapeColor = s.TapeColor; Doc.InkColor = s.InkColor; Doc.Layout = s.Layout;
+        Doc.TapeColor = s.TapeColor; Doc.InkColor = s.InkColor; Doc.Layout = s.Layout; Doc.Invert = s.Invert;
         Selection.RemoveAll(id => Find(id) is null);
         if (Find(ScopeId) is null) ScopeId = null;
     }
@@ -399,7 +402,7 @@ public sealed partial class Editor
             {
                 Zoom = 1, DocW = doc.WidthMm, DocH = doc.HeightMm, Dpi = doc.Dpi, Margins = doc.Margins, Cuts = doc.Cuts,
                 Items = items, Dividers = Dividers(doc), Zones = Zones(doc),
-                Tape = Media.Hex(Media.TapeColors, doc.TapeColor), Ink = Media.Hex(Media.InkColors, doc.InkColor),
+                Tape = Media.Hex(Media.TapeColors, doc.TapeColor), Ink = Media.Hex(Media.InkColors, doc.InkColor), Invert = doc.Invert,
             };
         }
         finally { _evalDoc = null; }

@@ -39,6 +39,8 @@ public sealed class LabelDocument
     public string TapeColor { get; set; } = "white";
     /// <summary>Print (foreground) colour id, see <see cref="Media.InkColors"/>.</summary>
     public string InkColor { get; set; } = "black";
+    /// <summary>Negative print: the whole label is printed solid with the content left blank.</summary>
+    public bool Invert { get; set; }
     /// <summary>Cable wrap, flag or port strip arrangement.</summary>
     public LabelLayout Layout { get; set; } = new();
     /// <summary>Places along the label where the tape is cut.</summary>
