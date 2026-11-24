@@ -41,14 +41,24 @@
         connected: () => alive,
 
         // Must be called from a user gesture: shows the browser's port picker.
-        connect: async () => open(await navigator.serial.requestPort()),
+        connect: async () => {
+            const p = await navigator.serial.requestPort();
+            const info = await open(p);
+            // remember which of the granted ports this is, to reopen it next time without a prompt
+            try { localStorage.setItem('wlm.port', String((await navigator.serial.getPorts()).indexOf(p))); } catch { }
+            return info;
+        },
 
-        // Reopen a port the user already granted, without a prompt. Returns null when there is none.
+        // Reopen the port used last time (the browser keeps the permission), without a prompt.
+        // Returns null when there is none or it cannot be opened, e.g. the printer is off.
         reconnect: async () => {
             if (!('serial' in navigator)) return null;
             const ports = await navigator.serial.getPorts();
-            if (ports.length !== 1) return null;
-            try { return await open(ports[0]); } catch { return null; }
+            let last = -1;
+            try { last = parseInt(localStorage.getItem('wlm.port') ?? '-1', 10); } catch { }
+            const p = ports[last] ?? (ports.length === 1 ? ports[0] : null);
+            if (!p) return null;
+            try { return await open(p); } catch { return null; }
         },
 
         close: async () => {

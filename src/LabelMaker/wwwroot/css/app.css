@@ -479,3 +479,12 @@ input, textarea { user-select: text; }
 .measure { margin-top: 10px; padding: 8px; border: 1px solid var(--line); background: var(--panel-2); }
 .measure .row > span { color: var(--ink-2); white-space: nowrap; font-size: 11px; }
 .sect > .seg.fill > button { padding: 0 4px; }
+
+/* ---------- printer status in the top bar ---------- */
+.pchip { font: 11px var(--mono); gap: 7px; max-width: 240px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pchip .led { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); flex: none; }
+.pchip.on .led { background: #2e9d4e; }
+.pchip.warn { border-color: var(--danger); color: var(--danger); }
+.pchip.warn .led { background: var(--danger); }
+.pmenu { width: 300px; padding: 4px 12px 12px; cursor: default; }
+.pmenu .menu-head { padding: 6px 0 8px; }

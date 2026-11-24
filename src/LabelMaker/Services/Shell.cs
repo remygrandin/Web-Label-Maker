@@ -21,6 +21,8 @@ public sealed class AppSettings
     public bool IconsMono { get; set; } = true;
     /// <summary>Icons placed on a label are also kept in the image library.</summary>
     public bool KeepIcons { get; set; }
+    /// <summary>Reopen the last printer port at start-up; switched off by a deliberate disconnect.</summary>
+    public bool AutoConnect { get; set; } = true;
 }
 
 /// <summary>App chrome state: persisted settings, the open dialog, toasts.</summary>

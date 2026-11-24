@@ -13,6 +13,7 @@ public sealed class PrinterService
     public PrinterService(IJSRuntime js, Editor ed, Shell shell)
     {
         _js = js; _ed = ed; _shell = shell;
+        _ed.Mutated += WarnMismatch; // the label may have switched tape
     }
 
     public bool Supported { get; private set; } = true;
@@ -44,20 +45,58 @@ public sealed class PrinterService
         Changed?.Invoke();
     }
 
+    readonly SemaphoreSlim _io = new(1, 1);   // one conversation with the printer at a time
+    bool _started;
+    CancellationTokenSource? _watch;
+    int _warnedTape = -1;
+
+    /// <summary>The loaded cassette is a different width from the label on screen.</summary>
+    public bool TapeMismatch => Status is { } s && s.MediaWidthCode != 0 && s.MediaWidthCode != Media.WidthCode;
+
+    /// <summary>
+    /// Called once at start-up, and again whenever a printer view opens: reopens the port used
+    /// last time (no prompt needed) unless the user disconnected on purpose.
+    /// </summary>
     public async Task Init()
     {
         Supported = await _js.InvokeAsync<bool>("LM.serial.supported");
-        if (!Supported) return;
+        if (!Supported) { Changed?.Invoke(); return; }
+        bool first = !_started;
+        _started = true;
         Connected = await _js.InvokeAsync<bool>("LM.serial.connected");
-        if (!Connected && await _js.InvokeAsync<string?>("LM.serial.reconnect") is { } info)
-        {
-            Connected = true;
-            PortInfo = info;
-            Say($"Reconnected to {info}.");
-            await Query();
-        }
+        if (Connected) { if (!first) await Query(); }
+        else if (_shell.Settings.AutoConnect) await Reconnect();
         Changed?.Invoke();
     }
+
+    /// <summary>Reopen the last port without a prompt. Stays quiet when the printer is off or out of range.</summary>
+    public async Task<bool> Reconnect()
+    {
+        if (Busy || Connecting) return Connected;
+        Connecting = true;
+        Changed?.Invoke();
+        try
+        {
+            if (await _js.InvokeAsync<string?>("LM.serial.reconnect") is { } info)
+            {
+                Connected = true;
+                PortInfo = info;
+                if (await Query() is null)
+                {
+                    // the port opens even when the printer is switched off: do not call that connected
+                    await _js.InvokeVoidAsync("LM.serial.close");
+                    Connected = false;
+                    Say("The printer did not answer; it may be off or out of range.");
+                }
+                else { Say($"Reconnected to {info}."); Watch(); }
+            }
+        }
+        catch (JSException ex) { Connected = false; Say($"Could not reopen the port: {FirstLine(ex.Message)}"); }
+        finally { Connecting = false; Changed?.Invoke(); }
+        return Connected;
+    }
+
+    public bool Connecting { get; private set; }
 
     /// <summary>Opens the browser's port picker; must run inside a click handler.</summary>
     public async Task Connect()
@@ -66,8 +105,11 @@ public sealed class PrinterService
         {
             PortInfo = await _js.InvokeAsync<string>("LM.serial.connect");
             Connected = true;
+            _shell.Settings.AutoConnect = true;
+            _shell.SaveSettings();
             Say($"Connected to {PortInfo}.");
             await Query();
+            Watch();
         }
         catch (JSException ex)
         {
@@ -79,16 +121,53 @@ public sealed class PrinterService
 
     public async Task Disconnect()
     {
+        _watch?.Cancel();
         await _js.InvokeVoidAsync("LM.serial.close");
         Connected = false;
         Status = null;
+        // a deliberate disconnect is remembered: no automatic reconnect next time
+        _shell.Settings.AutoConnect = false;
+        _shell.SaveSettings();
         Say("Disconnected.");
+    }
+
+    /// <summary>While connected, ask the printer now and then what is loaded, so a cassette swap shows up.</summary>
+    async void Watch()
+    {
+        _watch?.Cancel();
+        var cts = _watch = new CancellationTokenSource();
+        try
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                await Task.Delay(20000, cts.Token);
+                if (!Connected) return;
+                if (Busy) continue;
+                if (await Query(quiet: true) is null && !Busy)
+                {
+                    await _js.InvokeVoidAsync("LM.serial.close");
+                    Connected = false;
+                    Status = null;
+                    Say("Lost contact with the printer.");
+                    return;
+                }
+            }
+        }
+        catch (TaskCanceledException) { }
+        catch (JSException) { }
     }
 
     static string FirstLine(string s) => s.Split('\n')[0];
 
     /// <summary>Reset the printer and ask what is loaded. Returns null when it does not answer.</summary>
-    public async Task<PrinterStatus?> Query()
+    public async Task<PrinterStatus?> Query(bool quiet = false)
+    {
+        await _io.WaitAsync();
+        try { return await QueryCore(quiet); }
+        finally { _io.Release(); }
+    }
+
+    async Task<PrinterStatus?> QueryCore(bool quiet = false)
     {
         try
         {
@@ -100,24 +179,39 @@ public sealed class PrinterService
                 var raw = await _js.InvokeAsync<byte[]?>("LM.serial.readStatus", 1500);
                 if (raw is { Length: 32 })
                 {
+                    var before = Status;
                     Status = new PrinterStatus { Raw = raw };
-                    Say($"Printer reports {Status.MediaWidth} tape ({Status.ModelName})" +
-                        (Status.Errors.Count > 0 ? $" — {string.Join(", ", Status.Errors)}" : "."));
+                    bool changed = before is null || before.MediaWidthCode != Status.MediaWidthCode
+                        || before.TapeColorCode != Status.TapeColorCode || !before.Errors.SequenceEqual(Status.Errors);
+                    if (!quiet || changed)
+                        Say($"Printer reports {Status.MediaWidth} tape ({Status.ModelName})" +
+                            (Status.Errors.Count > 0 ? $" — {string.Join(", ", Status.Errors)}" : "."));
+                    WarnMismatch();
                     Changed?.Invoke();
                     return Status;
                 }
             }
             Status = null;
-            Say("The printer did not answer the status request.");
+            if (!quiet) Say("The printer did not answer the status request.");
         }
         catch (JSException ex)
         {
             Status = null;
             Connected = await _js.InvokeAsync<bool>("LM.serial.connected");
-            Say($"Status request failed: {FirstLine(ex.Message)}");
+            if (!quiet) Say($"Status request failed: {FirstLine(ex.Message)}");
         }
         Changed?.Invoke();
         return null;
+    }
+
+    /// <summary>Say once, per cassette and label width, that they do not match.</summary>
+    public void WarnMismatch()
+    {
+        if (!TapeMismatch) { _warnedTape = -1; return; }
+        int key = Status!.MediaWidthCode * 1000 + Media.WidthCode;
+        if (key == _warnedTape) return;
+        _warnedTape = key;
+        _shell.Toast($"The printer holds {Status.MediaWidth} tape, but this label is laid out for {Media.Label}.");
     }
 
     RenderFrame Frame()
@@ -163,7 +257,8 @@ public sealed class PrinterService
         Changed?.Invoke();
         try
         {
-            var status = await Query();
+            await _io.WaitAsync();
+            var status = await QueryCore();
             if (status is not null)
             {
                 if (status.Errors.Count > 0) { Say("Not printing: clear the printer error first."); return; }
@@ -244,6 +339,7 @@ public sealed class PrinterService
         }
         finally
         {
+            _io.Release();
             Busy = false;
             Changed?.Invoke();
         }

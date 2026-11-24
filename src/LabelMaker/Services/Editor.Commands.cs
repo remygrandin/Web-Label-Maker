@@ -300,6 +300,22 @@ public sealed partial class Editor
     // ---- document settings ---------------------------------------------------------------------
 
     /// <summary>
+    /// Switch tape the way the user does it: a label with content asks whether to scale it
+    /// with the tape or keep its sizes. Returns false when the user cancelled.
+    /// </summary>
+    public async Task<bool> ChangeTape(string id)
+    {
+        if (id == Doc.MediaId) return true;
+        if (Doc.Nodes.Count == 0) { SetMedia(id); return true; }
+        int answer = await _shell.Ask("Change tape",
+            $"Switching from {Media.Get(Doc.MediaId).Label} to {Media.Get(id).Label} tape. Scale the content to fit the new tape, or keep every object at its current size?",
+            "Scale content", "Keep sizes");
+        if (answer < 0) return false;
+        SetMedia(id, scale: answer == 0);
+        return true;
+    }
+
+    /// <summary>
     /// Switch tape. With <paramref name="scale"/> the content is resized in proportion to the
     /// printable height (and the label length with it); otherwise it keeps its size and is re-centred.
     /// </summary>

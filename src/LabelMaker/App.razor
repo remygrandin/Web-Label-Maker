@@ -1,11 +1,13 @@
 ﻿@implements IDisposable
 @inject Shell Shell
 @inject Library Lib
+@inject PrinterService Printer
 
 <div class="app">
     <TopBar>
         <ChildContent><FileMenu /></ChildContent>
         <Actions>
+            <PrinterChip />
             <button class="btn" title="Saved labels and templates" @onclick="() => Shell.Open(Dialog.Library)"><Icon Name="folder" />Library</button>
             <button class="btn primary" title="Preview and print" @onclick="() => Shell.Open(Dialog.Print)"><Icon Name="printer" />Print</button>
         </Actions>
@@ -64,7 +66,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender) await Lib.Restore();
+        if (firstRender)
+        {
+            await Lib.Restore();
+            _ = Printer.Init(); // reopen the last printer port in the background
+        }
     }
 
     void Update() => InvokeAsync(StateHasChanged);

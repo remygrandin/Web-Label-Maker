@@ -39,6 +39,35 @@ public sealed class PrinterStatus
 
     public string MediaWidth => MediaWidthCode switch { 0 => "no tape", 4 => "3.5 mm", var w => $"{w} mm" };
 
+    // Bytes 24 and 25 carry the cassette's tape and text colour on the models whose raster
+    // reference documents them (PT-P700 / P750W / E550W / P710BT / P900 families).
+    public int TapeColorCode => Raw[24];
+    public int TextColorCode => Raw[25];
+    public bool HasColors => MediaWidthCode != 0 && TapeColorCode != 0 && TextColorCode != 0;
+
+    /// <summary>(name, id of the matching preview colour or null) for the loaded tape.</summary>
+    public (string Name, string? Id) TapeColor => TapeColorCode switch
+    {
+        0x01 => ("White", "white"), 0x03 => ("Clear", "clear"), 0x04 => ("Red", "red"), 0x05 => ("Blue", "blue"),
+        0x06 => ("Yellow", "yellow"), 0x07 => ("Green", "green"), 0x08 => ("Black", "black"), 0x09 => ("Clear", "clear"),
+        0x20 => ("Matte white", "white"), 0x21 => ("Matte clear", "clear"), 0x22 => ("Matte silver", "silver"),
+        0x23 => ("Satin gold", "gold"), 0x24 => ("Satin silver", "silver"),
+        0x30 => ("Blue", "blue"), 0x31 => ("Red", "red"), 0x40 => ("Fluorescent orange", "orange"), 0x41 => ("Fluorescent yellow", "yellow"),
+        0x50 => ("Berry pink", "pink"), 0x51 => ("Light gray", "gray"), 0x52 => ("Lime green", "green"),
+        0x60 => ("Yellow (fabric)", "yellow"), 0x61 => ("Pink (fabric)", "pink"), 0x62 => ("Blue (fabric)", "blue"),
+        0x70 => ("White heat-shrink tube", "white"), 0x90 => ("White flexible ID", "white"), 0x91 => ("Yellow flexible ID", "yellow"),
+        0xF0 => ("Cleaning tape", null), 0xF1 => ("Stencil tape", null), 0x02 => ("Other", null), 0xFF => ("Incompatible tape", null),
+        var c => ($"colour code 0x{c:X2}", null),
+    };
+
+    public (string Name, string? Id) TextColor => TextColorCode switch
+    {
+        0x01 => ("white", "white"), 0x04 => ("red", "red"), 0x05 => ("blue", "blue"), 0x08 => ("black", "black"),
+        0x0A => ("gold", "gold"), 0x62 => ("blue", "blue"),
+        0xF0 => ("cleaning", null), 0xF1 => ("stencil", null), 0x02 => ("other", null), 0xFF => ("incompatible", null),
+        var c => ($"code 0x{c:X2}", null),
+    };
+
     public List<string> Errors
     {
         get

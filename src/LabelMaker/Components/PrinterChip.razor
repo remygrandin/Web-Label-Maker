@@ -1,0 +1,127 @@
+@implements IDisposable
+@inject PrinterService Printer
+@inject Editor Ed
+@inject Shell Shell
+
+@* Printer state in the top bar: connect, see what tape is loaded, and get warned when it does not match the label. *@
+<div class="menu-wrap">
+    <button class="btn pchip @State" title="@Tip" @onclick="Toggle">
+        <i class="led"></i>@Label
+    </button>
+    @if (_open)
+    {
+        <div class="menu-scrim" @onclick="() => _open = false"></div>
+        <div class="menu right pmenu">
+            <div class="menu-head">Printer</div>
+            @if (!Printer.Supported)
+            {
+                <div class="warn">This browser has no Web Serial support. Use Chrome, Edge or Opera on a desktop computer to print.</div>
+            }
+            else
+            {
+                <div class="kv">
+                    <span>Model</span><b>@(S?.ModelName ?? Printer.Model.Name)</b>
+                    <span>Link</span><b>@(Printer.Connecting ? "Connecting…" : Printer.Connected ? Printer.PortInfo : "Not connected")</b>
+                    @if (S is not null)
+                    {
+                        <span>Tape</span><b>@S.MediaWidth@(S.HasColors ? $" · {S.TextColor.Name} on {S.TapeColor.Name.ToLowerInvariant()}" : "")</b>
+                    }
+                </div>
+                @if (S is { Errors.Count: > 0 })
+                {
+                    <div class="warn">@string.Join(", ", S.Errors)</div>
+                }
+                @if (Printer.TapeMismatch && Loaded is { } loaded)
+                {
+                    <div class="warn">The printer holds @S!.MediaWidth tape; this label is laid out for @Printer.Media.Label.</div>
+                    <button class="btn sm" style="margin-top:6px" @onclick="() => UseTape(loaded.Id)">Switch the label to @loaded.Label</button>
+                }
+                @if (ColoursDiffer)
+                {
+                    <button class="btn sm" style="margin-top:6px" title="Show the label in the colours of the loaded cassette" @onclick="UseColours">Preview in the loaded tape's colours</button>
+                }
+                @if (S is not null)
+                {
+                    <div class="hint">
+                        Colour bytes reported: tape <b>0x@(S.TapeColorCode.ToString("X2"))</b>, text <b>0x@(S.TextColorCode.ToString("X2"))</b>@(S.HasColors ? "" : " (this printer does not report colours)").
+                    </div>
+                }
+                <div class="row" style="margin-top:10px">
+                    @if (Printer.Connected)
+                    {
+                        <button class="btn sm" disabled="@Printer.Busy" title="Ask the printer again what is loaded" @onclick="() => Printer.Query()">Refresh</button>
+                        <span style="flex:1"></span>
+                        <button class="btn sm" disabled="@Printer.Busy" @onclick="Printer.Disconnect">Disconnect</button>
+                    }
+                    else
+                    {
+                        <button class="btn sm" disabled="@Printer.Connecting" title="Reopen the port used last time" @onclick="() => Printer.Reconnect()">Reconnect</button>
+                        <span style="flex:1"></span>
+                        <button class="btn sm solid" disabled="@Printer.Connecting" title="Pick the printer's serial (COM) port" @onclick="Printer.Connect">Choose port…</button>
+                    }
+                </div>
+                @if (!Printer.Connected)
+                {
+                    <div class="hint">Pair the printer over Bluetooth in your system settings first. The port you pick is reopened automatically next time.</div>
+                }
+                @if (Printer.Log.Count > 0)
+                {
+                    <div class="log" style="margin-top:8px">@string.Join("\n", Enumerable.Reverse(Printer.Log).Take(4))</div>
+                }
+            }
+        </div>
+    }
+</div>
+
+@code {
+    bool _open;
+
+    PrinterStatus? S => Printer.Status;
+    MediaInfo? Loaded => S is null ? null : Media.All.FirstOrDefault(m => m.WidthCode == S.MediaWidthCode);
+
+    bool ColoursDiffer => S is { HasColors: true } s && s.TapeColor.Id is { } tape && s.TextColor.Id is { } ink
+        && (tape != Ed.Doc.TapeColor || ink != Ed.Doc.InkColor);
+
+    string State => !Printer.Supported || !Printer.Connected ? "off"
+        : S is { Errors.Count: > 0 } || Printer.TapeMismatch ? "warn" : "on";
+
+    string Label => !Printer.Supported ? "No printer support"
+        : Printer.Connecting ? "Connecting…"
+        : !Printer.Connected ? "Printer offline"
+        : S is null ? "Printer connected"
+        : S.Errors.Count > 0 ? S.Errors[0]
+        : Printer.TapeMismatch ? $"{S.MediaWidth} tape loaded"
+        : $"{S.ModelName} · {S.MediaWidth}";
+
+    string Tip => Printer.TapeMismatch
+        ? $"The printer holds {S!.MediaWidth} tape; this label is laid out for {Printer.Media.Label}."
+        : "Printer connection and loaded tape";
+
+    protected override void OnInitialized()
+    {
+        Printer.Changed += Update;
+        Ed.Changed += Update;
+    }
+
+    void Toggle() => _open = !_open;
+
+    async Task UseTape(string id)
+    {
+        _open = false;
+        await Ed.ChangeTape(id);
+    }
+
+    void UseColours()
+    {
+        if (S is not { } s || s.TapeColor.Id is not { } tape || s.TextColor.Id is not { } ink) return;
+        Ed.Mutate(() => { Ed.Doc.TapeColor = tape; Ed.Doc.InkColor = ink; });
+    }
+
+    void Update() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        Printer.Changed -= Update;
+        Ed.Changed -= Update;
+    }
+}

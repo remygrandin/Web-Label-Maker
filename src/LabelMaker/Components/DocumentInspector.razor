@@ -143,15 +143,7 @@
     // A label with content can either be resized with the tape or keep its sizes: ask.
     async Task ChangeTape(string id)
     {
-        if (id == Ed.Doc.MediaId) return;
-        if (Ed.Doc.Nodes.Count == 0) { Ed.SetMedia(id); return; }
-        var from = Media.Get(Ed.Doc.MediaId);
-        var to = Media.Get(id);
-        int answer = await Shell.Ask("Change tape",
-            $"Switching from {from.Label} to {to.Label} tape. Scale the content to fit the new tape, or keep every object at its current size?",
-            "Scale content", "Keep sizes");
-        if (answer < 0) { _tapeKey++; StateHasChanged(); return; } // put the selector back
-        Ed.SetMedia(id, scale: answer == 0);
+        if (!await Ed.ChangeTape(id)) { _tapeKey++; StateHasChanged(); } // cancelled: put the selector back
     }
 
     void SetAuto(bool auto)
