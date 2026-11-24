@@ -1,0 +1,38 @@
+@using System.Reflection
+@inject Shell Shell
+
+<div class="scrim">
+    <div class="dialog narrow">
+        <div class="dhead">
+            <h2>About</h2>
+            <span class="grow"></span>
+            <button class="ibtn" title="Close" @onclick="Shell.Close"><Icon Name="x" /></button>
+        </div>
+        <div class="dbody about">
+            <p class="lead">WebLabelMaker designs and prints labels for tape printers, entirely in the browser.</p>
+            <p>
+                Lay out text, shapes, tables, images, icons and 1D or 2D codes on a label, then send it to a
+                Brother P-touch printer over Bluetooth or a serial (COM) port. Cabling layouts, cut marks,
+                counters and variables are built in.
+            </p>
+            <p>
+                Nothing is uploaded: labels, templates and images are stored in this browser, and printing
+                talks to the printer directly. Fonts and icons are fetched from Google Fonts and Iconify when you use them.
+            </p>
+            <div class="kv" style="margin-top:14px">
+                <span>Source</span>
+                <b><a href="@Repo" target="_blank" rel="noopener">github.com/remygrandin/Web-Label-Maker</a></b>
+                <span>Build</span>
+                <b style="user-select:text">@Build</b>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    const string Repo = "https://github.com/remygrandin/Web-Label-Maker";
+
+    /// <summary>UTC build date and time, then the short commit id: yyyyMMdd-HHmm-commit.</summary>
+    static readonly string Build = typeof(AboutDialog).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+        .FirstOrDefault(a => a.Key == "BuildStamp")?.Value ?? "unknown";
+}

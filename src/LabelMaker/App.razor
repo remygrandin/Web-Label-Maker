@@ -10,6 +10,7 @@
             <PrinterChip />
             <button class="btn" title="Saved labels and templates" @onclick="() => Shell.Open(Dialog.Library)"><Icon Name="folder" />Library</button>
             <button class="btn primary" title="Preview and print" @onclick="() => Shell.Open(Dialog.Print)"><Icon Name="printer" />Print</button>
+            <button class="ibtn" title="About WebLabelMaker" @onclick="() => Shell.Open(Dialog.About)"><Icon Name="info" /></button>
         </Actions>
     </TopBar>
     <ToolRail />
@@ -27,6 +28,11 @@
 @if (Shell.Dialog is Dialog.Images or Dialog.Icons)
 {
     <ImageDialog @key="Shell.Dialog" />
+}
+
+@if (Shell.Dialog == Dialog.About)
+{
+    <AboutDialog />
 }
 
 @if (Shell.Dialog == Dialog.Print)

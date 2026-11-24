@@ -3,7 +3,7 @@ using Microsoft.JSInterop;
 
 namespace LabelMaker.Services;
 
-public enum Dialog { None, Library, Templates, Print, Images, Icons }
+public enum Dialog { None, Library, Templates, Print, Images, Icons, About }
 
 public sealed class AppSettings
 {

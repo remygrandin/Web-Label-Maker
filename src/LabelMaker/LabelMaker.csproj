@@ -16,4 +16,23 @@
     <PackageReference Include="ZXing.Net" Version="0.16.11" />
   </ItemGroup>
 
+  <!-- Build version shown in About: UTC build date-time and the short commit id.
+       The commit comes from git, or from Cloudflare's build environment when git cannot answer. -->
+  <Target Name="StampBuild" BeforeTargets="GetAssemblyAttributes">
+    <Exec Command="git rev-parse --short=7 HEAD" WorkingDirectory="$(MSBuildProjectDirectory)" ConsoleToMSBuild="true"
+          IgnoreExitCode="true" ContinueOnError="true" StandardOutputImportance="low" StandardErrorImportance="low">
+      <Output TaskParameter="ConsoleOutput" PropertyName="GitShort" />
+      <Output TaskParameter="ExitCode" PropertyName="GitExit" />
+    </Exec>
+    <PropertyGroup>
+      <CommitId Condition="'$(GitExit)' == '0' and '$(GitShort)' != ''">$(GitShort.Trim())</CommitId>
+      <CommitId Condition="'$(CommitId)' == '' and '$(WORKERS_CI_COMMIT_SHA)' != ''">$(WORKERS_CI_COMMIT_SHA.Substring(0, 7))</CommitId>
+      <CommitId Condition="'$(CommitId)' == ''">local</CommitId>
+      <BuildStamp>$([System.DateTime]::UtcNow.ToString('yyyyMMdd-HHmm'))-$(CommitId)</BuildStamp>
+    </PropertyGroup>
+    <ItemGroup>
+      <AssemblyMetadata Include="BuildStamp" Value="$(BuildStamp)" />
+    </ItemGroup>
+  </Target>
+
 </Project>
