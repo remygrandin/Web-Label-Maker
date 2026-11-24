@@ -29,6 +29,7 @@
                         @Printer.Media.Label tape, or inside its feed margins, and will not print.
                     </div>
                     @if (Printer.PreviewError is { } perr) { <div class="warn">@perr</div> }
+                    @if (Printer.PreviewNote is { } pnote) { <div class="warn">@pnote</div> }
                     @if (Printer.CutNote is { } note) { <div class="warn">@note</div> }
                     @if (Ed.UsesSeq) { <div class="hint">Counter: this run prints <b>@Ed.Doc.Counter.Value</b> onwards, one step per copy.</div> }
                     <div class="kv" style="margin-top:12px">

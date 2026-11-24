@@ -268,13 +268,19 @@ public sealed class PrinterService
     int Dots(double mm) => (int)Math.Round(mm * Model.Dpi / 25.4);
 
     public string? PreviewError { get; private set; }
+    /// <summary>Something the user should know about how this label will come out, without it being an error.</summary>
+    public string? PreviewNote { get; private set; }
 
     public async Task<string?> Preview()
     {
         PreviewError = null;
+        PreviewNote = null;
         if (Geometry is not { } g) return null;
         var f = Frame();
         int w = Dots(f.DocW), h = Dots(f.DocH);
+        if (Brother.StretchedLength(Model, Options, w, ActiveCuts.Count > 0) is { } dots)
+            PreviewNote = $"This label is shorter than the printer can make with a {Brother.FeedDots(Model, Options) * 25.4 / Model.Dpi:0.#} mm feed. " +
+                $"The whole design will print, centred on about {dots * 25.4 / Model.Dpi:0.#} mm of tape. A smaller feed gives a shorter label.";
         int y0 = (int)Math.Round((h - g.PrintPins) / 2.0);
         var rects = new List<int>();
         try

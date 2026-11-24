@@ -164,20 +164,37 @@ public static class Brother
         edges.AddRange(cuts.Where(c => c > 0 && c < width).Distinct().OrderBy(c => c));
         edges.Add(width);
         var pieces = new List<(int, int)>();
+        if (edges.Count == 2 && width - 2 * feed < MinLines)
+        {
+            // A label too short to leave the printer's minimum page between its feed margins is
+            // not refused: the whole design is printed, centred on a page of at least the minimum
+            // length, and the tape comes out longer than drawn (page + feed at both ends).
+            int page = Math.Max(MinLines, width);
+            return [(-(page - width) / 2, page)];
+        }
         for (int i = 0; i + 1 < edges.Count; i++)
         {
             int lines = edges[i + 1] - edges[i] - 2 * feed;
             if (lines < MinLines)
-                throw new InvalidOperationException(edges.Count > 2
-                    ? $"Piece {i + 1} is too short to print: allow at least {Math.Ceiling((MinLines + 2 * feed) * 25.4 / model.Dpi)} mm between cuts."
-                    : "The label is too short for this printer.");
+                throw new InvalidOperationException(
+                    $"Piece {i + 1} is too short to print: allow at least {Math.Ceiling((MinLines + 2 * feed) * 25.4 / model.Dpi)} mm between cuts.");
             pieces.Add((edges[i] + feed, lines));
         }
         return pieces;
     }
 
+    /// <summary>
+    /// When a label is too short to print as drawn, the length of tape it will actually use, in dots;
+    /// null when it prints at its own length.
+    /// </summary>
+    public static int? StretchedLength(PrinterModel model, PrintOptions o, int width, bool hasCuts)
+    {
+        int feed = FeedDots(model, o);
+        return hasCuts || width - 2 * feed >= MinLines ? null : Math.Max(MinLines, width) + 2 * feed;
+    }
+
     /// <summary>Shortest printable page, in raster lines (Brother: 34 at 180 dpi).</summary>
-    const int MinLines = 34;
+    public const int MinLines = 34;
 
     /// <summary>One printed page: a window of a 1-bit raster, and what happens to the tape after it.</summary>
     /// <param name="Bits">One byte per dot (1 = black), row-major; Width runs along the tape, Height across it.</param>
