@@ -206,25 +206,50 @@
         return error;
     }
 
+    // Which icon sets are multi-colour (emoji, logos…), from the documented /collections list.
+    let palettes = null;
+    const paletteSets = () => palettes ??= fetch(`${ICONIFY}/collections`)
+        .then(r => r.ok ? r.json() : {})
+        .then(sets => new Set(Object.keys(sets).filter(k => sets[k].palette)))
+        .catch(() => { palettes = null; return new Set(); });
+
+    // Every matching icon name. The search behind icon-sets.iconify.design returns up to
+    // 999 names; the documented API search (at most 128) is the fallback if it is unavailable.
+    async function findIcons(q, mono) {
+        try {
+            const res = await fetch(`https://s.iconify.design/api/iconify?query=${encodeURIComponent(q)}`);
+            if (res.ok) {
+                let ids = await res.json();
+                if (Array.isArray(ids) && ids.length) {   // it answers nothing for very short words
+                    if (mono) { const skip = await paletteSets(); ids = ids.filter(id => !skip.has(String(id).split(':')[0])); }
+                    return { ids };
+                }
+            }
+        } catch { /* fall through to the documented API */ }
+        const res = await fetch(`${ICONIFY}/search?query=${encodeURIComponent(q + (mono ? ' palette=false' : ''))}&limit=999`);
+        if (!res.ok) return { error: rateLimited(res) };
+        return { ids: (await res.json()).icons || [] };
+    }
+
+    // The first `count` matches with their drawings; ask again with a larger count for more.
     // -> { icons: [{ id, dataUrl, w, h }], total, error, stale }
-    LM.iconSearch = async (query, mono) => {
+    LM.iconSearch = async (query, mono, count) => {
         const seq = ++searchSeq, alive = () => seq === searchSeq;
         const none = (error, stale) => ({ icons: [], total: 0, error: error || null, stale: !!stale });
         try {
-            const q = String(query || '').trim().toLowerCase() + (mono ? ' palette=false' : '');
-            let found = searchCache.get(q);
+            const q = String(query || '').trim().toLowerCase(), key = (mono ? 'm|' : 'a|') + q;
+            let found = searchCache.get(key);
             if (!found) {
-                const res = await fetch(`${ICONIFY}/search?query=${encodeURIComponent(q)}&limit=64`);
-                if (!res.ok) return none(rateLimited(res));
-                const data = await res.json();
-                found = { ids: data.icons || [], total: data.total || 0 };
-                searchCache.set(q, found);
+                found = await findIcons(q, mono);
+                if (found.error) return none(found.error);
+                searchCache.set(key, found);
             }
             if (!alive()) return none(null, true);
-            const error = await loadIcons(found.ids, alive);
+            const page = found.ids.slice(0, Math.max(1, count || 96));
+            const error = await loadIcons(page, alive);
             if (!alive()) return none(null, true);
-            const icons = found.ids.map(id => iconCache.get(id)).filter(Boolean);
-            return { icons, total: found.total, error: icons.length ? null : error, stale: false };
+            const icons = page.map(id => iconCache.get(id)).filter(Boolean);
+            return { icons, total: found.ids.length, error: icons.length || !error ? null : error, stale: false };
         } catch {
             return alive() ? none('Could not reach the icon service. Check your connection.') : none(null, true);
         }
