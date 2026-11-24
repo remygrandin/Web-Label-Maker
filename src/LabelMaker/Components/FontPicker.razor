@@ -12,7 +12,7 @@
     <div class="menu-scrim" @onclick="() => _open = false"></div>
     <div class="fontpop" style="top:@(_top.ToString("0", CultureInfo.InvariantCulture))px">
         <div class="search">
-            <input id="font-search" class="inp" placeholder="Search, or type any Google Fonts name" autocomplete="off" spellcheck="false"
+            <input id="font-search" class="inp" placeholder="Search all Google Fonts" autocomplete="off" spellcheck="false"
                    value="@_query" @oninput="e => _query = e.Value?.ToString() ?? string.Empty" @onkeydown="SearchKey" />
         </div>
         <div class="fontlist">
@@ -68,9 +68,7 @@
     List<string> InDocument => Editor.Fonts(Ed.All()).OrderBy(f => f).ToList();
     List<string> Recent => Shell.Settings.RecentFonts.Except(InDocument).Take(6).ToList();
 
-    IEnumerable<string> Matches => FontCatalog.AllCurated.Concat(FontCatalog.More).Concat(Shell.Settings.RecentFonts).Distinct()
-        .Where(f => f.Contains(Query, StringComparison.OrdinalIgnoreCase))
-        .OrderBy(f => f.StartsWith(Query, StringComparison.OrdinalIgnoreCase) ? 0 : 1).ThenBy(f => f).Take(40);
+    List<string> Matches => FontCatalog.Search(Query, Shell.Settings.RecentFonts);
 
     RenderFragment Option(string family, bool preview) => @<button class="fontopt @(family == Value ? "on" : "")" @onclick="() => Pick(family)"
         style="@(preview ? $"font-family:'{family}',var(--sans)" : "")">@family</button>;
@@ -86,6 +84,8 @@
         var r = await JS.InvokeAsync<double[]>("LM.rectOf", _button);
         _top = Math.Max(48, Math.Min(r[1] + r[3] + 2, 9999));
         _focus = true;
+        // the full Google Fonts list, for searching; the built-in suggestions serve until it arrives
+        if (!FontCatalog.FullListLoaded) _ = LoadFullList();
         // previews: fetch the curated set in the background
         foreach (var f in FontCatalog.AllCurated) _ = Ed.LoadFont(f);
     }
@@ -95,6 +95,16 @@
         if (!_focus) return;
         _focus = false;
         await JS.InvokeVoidAsync("LM.focus", "#font-search", false);
+    }
+
+    async Task LoadFullList()
+    {
+        try
+        {
+            FontCatalog.SetFullList(await JS.InvokeAsync<string[]>("LM.fontList") ?? []);
+            StateHasChanged();
+        }
+        catch (JSException) { /* offline: keep the built-in suggestions */ }
     }
 
     async Task SearchKey(KeyboardEventArgs e)

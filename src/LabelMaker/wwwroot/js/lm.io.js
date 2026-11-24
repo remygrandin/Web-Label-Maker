@@ -36,6 +36,14 @@
         return p;
     };
 
+    // Every Google Fonts family name, for the font search. Google's own catalogue is not readable
+    // from a web page, so the list comes from the Fontsource API, which mirrors it.
+    let fontList = null;
+    LM.fontList = () => fontList ??= fetch('https://api.fontsource.org/v1/fonts?type=google')
+        .then(r => r.ok ? r.json() : [])
+        .then(list => list.map(f => f.family).filter(Boolean))
+        .catch(() => { fontList = null; return []; });
+
     // ---- IndexedDB -----------------------------------------------------------------
     // Stores: "docs" and "templates" hold { id, name, modified, w, h, thumb, json };
     // "meta" holds single values such as the autosaved working document.
