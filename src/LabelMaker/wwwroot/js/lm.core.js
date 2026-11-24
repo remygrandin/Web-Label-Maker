@@ -18,7 +18,26 @@
         if (e.target?.id === 'cell-text' && (e.key === 'Tab' || e.key === 'Enter')) e.preventDefault();
     }, true);
 
-    LM.scrollTop = (selector) => { const el = document.querySelector(selector); if (el) el.scrollTop = 0; };
+    // Middle-click on a library card opens that label in a new browser tab. The new tab is
+    // told what to open through ?open=…, which it removes from the address once read.
+    const openTarget = (e) => e.button === 1 ? e.target.closest?.('[data-open]') : null;
+    document.addEventListener('mousedown', (e) => { if (openTarget(e)) e.preventDefault(); }, true); // no autoscroll cursor
+    document.addEventListener('auxclick', (e) => {
+        const el = openTarget(e);
+        if (!el) return;
+        e.preventDefault();
+        window.open(`${location.pathname}?open=${encodeURIComponent(el.dataset.open)}`, '_blank', 'noopener');
+    }, true);
+
+    LM.openRequest = () => {
+        const url = new URL(location.href), what = url.searchParams.get('open');
+        if (what === null) return null;
+        url.searchParams.delete('open');
+        history.replaceState(null, '', url.pathname + url.search + url.hash);
+        return what;
+    };
+
+    LM.scrollTop =(selector) => { const el = document.querySelector(selector); if (el) el.scrollTop = 0; };
 
     LM.focus = (selector, select) => {
         const el = document.querySelector(selector);

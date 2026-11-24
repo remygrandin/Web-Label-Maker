@@ -25,7 +25,7 @@
                         var entry = a;
                         bool own = Lib.IsOwnAutosave(entry.Id);
                         <div class="card">
-                            <button class="card-thumb" disabled="@own" title="@(own ? "This is the label you are working on" : entry.Live ? "Open a copy in this tab" : "Open in this tab")" @onclick="() => OpenAuto(entry)">
+                            <button class="card-thumb" data-open="@entry.Id" disabled="@own" title="@(own ? "This is the label you are working on" : entry.Live ? "Open a copy in this tab" : "Open in this tab")" @onclick="() => OpenAuto(entry)">
                                 @if (entry.Thumb is not null) { <img src="@entry.Thumb" alt="" /> }
                             </button>
                             <div class="card-meta">
@@ -57,7 +57,7 @@
                     {
                         var entry = e;
                         <div class="card">
-                            <button class="card-thumb" title="Open" @onclick="() => OpenDoc(entry.Id)">
+                            <button class="card-thumb" data-open="doc:@entry.Id" title="Open (middle-click for a new browser tab)" @onclick="() => OpenDoc(entry.Id)">
                                 @if (entry.Thumb is not null) { <img src="@entry.Thumb" alt="" /> }
                             </button>
                             <div class="card-meta">
@@ -79,7 +79,7 @@
                     {
                         var entry = t;
                         <div class="card">
-                            <button class="card-thumb" title="New label from this template" @onclick="() => UseUser(entry.Id)">
+                            <button class="card-thumb" data-open="template:@entry.Id" title="New label from this template (middle-click for a new browser tab)" @onclick="() => UseUser(entry.Id)">
                                 @if (entry.Thumb is not null) { <img src="@entry.Thumb" alt="" /> }
                             </button>
                             <div class="card-meta">
@@ -96,7 +96,7 @@
                     {
                         var doc = b;
                         <div class="card">
-                            <button class="card-thumb" title="New label from this template" @onclick="() => Use(doc)">
+                            <button class="card-thumb" data-open="builtin:@doc.Id" title="New label from this template (middle-click for a new browser tab)" @onclick="() => Use(doc)">
                                 @if (Thumbs.TryGetValue(doc.Id, out var src)) { <img src="@src" alt="" /> }
                             </button>
                             <div class="card-meta">

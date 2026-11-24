@@ -126,7 +126,7 @@ public sealed class Library
     /// The working label for this tab: its own after a reload, a copy of the source tab's when
     /// the tab was duplicated, otherwise the most recent one no open tab is using.
     /// </summary>
-    async Task<string?> ClaimWorkingCopy()
+    async Task<string?> ClaimWorkingCopy(bool adopt = true)
     {
         var tab = await _js.InvokeAsync<TabInfo>("LM.tabInit");
         _autosaveKey = "autosave:" + tab.Id;
@@ -138,7 +138,7 @@ public sealed class Library
         orphans.RemoveAll(o => o.Id == _autosaveKey);
         // labels set aside on purpose stay in the Autosaved list; only a closed tab's work is picked up
         int next = orphans.FindIndex(o => !o.Id.StartsWith(KeptPrefix));
-        if (json is null && next >= 0)
+        if (json is null && adopt && next >= 0)
         {
             // take over the working copy a closed tab left behind
             var o = orphans[next];
@@ -162,7 +162,16 @@ public sealed class Library
     {
         try
         {
-            var json = await ClaimWorkingCopy();
+            // a tab opened by middle-clicking a library card is told what to show
+            var request = await _js.InvokeAsync<string?>("LM.openRequest");
+            var json = await ClaimWorkingCopy(adopt: request is null);
+            if (request is not null && await OpenRequested(request))
+            {
+                SaveError = null;
+                _restored = true;
+                await Autosave();
+                return;
+            }
             if (json is not null && DocJson.Read<WorkingState>(json) is { } state)
             {
                 InLibrary = await _js.InvokeAsync<string?>("LM.db.get", Docs, state.Document.Id) is not null;
@@ -178,6 +187,50 @@ public sealed class Library
         SaveError = null;
         _restored = true;
         await _ed.Load(BuiltInTemplates.Starter());
+    }
+
+    /// <summary>Load what a "open in a new tab" request names: "doc:id", "template:id", "builtin:id" or an autosave key.</summary>
+    async Task<bool> OpenRequested(string request)
+    {
+        int cut = request.IndexOf(':');
+        string kind = cut < 0 ? request : request[..cut], id = cut < 0 ? "" : request[(cut + 1)..];
+        switch (kind)
+        {
+            case "doc" when await Get(Docs, id) is { } doc:
+                InLibrary = true;
+                await _ed.Load(doc);
+                return true;
+            case "template" when await Get(Templates, id) is { } template:
+                InLibrary = false;
+                await _ed.Load(FromTemplate(template));
+                return true;
+            case "builtin" when BuiltInTemplates.All().FirstOrDefault(t => t.Id == id) is { } builtIn:
+                InLibrary = false;
+                await _ed.Load(FromTemplate(builtIn));
+                return true;
+            case "autosave":
+            {
+                var entry = (await ListAutosaves()).FirstOrDefault(a => a.Id == request);
+                var json = await _js.InvokeAsync<string?>("LM.db.get", "meta", request);
+                if (entry is null || json is null || DocJson.Read<WorkingState>(json) is not { } state) return false;
+                InLibrary = await _js.InvokeAsync<string?>("LM.db.get", Docs, state.Document.Id) is not null;
+                await _ed.Load(state.Document, state.Dirty);
+                // one no tab was using moves here; one open elsewhere is copied
+                if (!entry.Live) await _js.InvokeVoidAsync("LM.db.del", "meta", request);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>A fresh label made from a template.</summary>
+    static LabelDocument FromTemplate(LabelDocument template)
+    {
+        var doc = DocJson.Clone(template);
+        doc.Id = Ids.New();
+        doc.Nodes = DocJson.CloneNodes(doc.Nodes);
+        doc.Modified = DateTime.UtcNow;
+        return doc;
     }
 
     async void ScheduleAutosave()
