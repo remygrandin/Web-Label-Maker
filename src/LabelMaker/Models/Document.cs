@@ -164,6 +164,8 @@ public sealed class LabelLayout
     public double Pitch { get; set; } = 5;
     /// <summary>Flag: length of each face.</summary>
     public double FlagLength { get; set; } = 25;
+    /// <summary>Flag: the face length follows the content (plus the left margin either side).</summary>
+    public bool FlagAuto { get; set; }
     /// <summary>Flag: the second face repeats the first.</summary>
     public bool Mirror { get; set; } = true;
     /// <summary>Flag: print the fold lines as dotted lines.</summary>

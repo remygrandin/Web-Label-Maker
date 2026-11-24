@@ -81,6 +81,7 @@ Under **Layout** in the label settings:
 - **Cable wrap:** set the cable diameter and repeat distance. Design the first cell;
   it repeats to cover the circumference.
 - **Flag:** two faces either side of a fold. Side B can copy side A or be designed separately.
+  *Face length* **Auto** makes each face as long as its content, plus the left margin either side.
 - **Ports:** a numbered strip. Set the number of ports, the first number and the
   spacing between left edges.
   - **Measure the spacing:** enter a distance measured across several ports and the app

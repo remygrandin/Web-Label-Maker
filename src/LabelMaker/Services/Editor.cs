@@ -210,6 +210,7 @@ public sealed partial class Editor
         finally { _evalDoc = null; }
         foreach (var (id, url) in doc.Assets)
             if (_sentAssets.Add(id)) _js.InvokeVoid("LM.setAsset", id, url);
+        AutoFlag(doc);
         if (LayoutWidth(doc) is { } fixedWidth) doc.WidthMm = Math.Max(5, Math.Round(fixedWidth, 1));
         else if (doc.AutoWidth && Geo.Bounds(doc.Nodes.Where(n => n.Visible)) is { } b)
             doc.WidthMm = Math.Max(8, Math.Round(b.R + doc.Margins.R, 1));

@@ -29,6 +29,56 @@ public sealed partial class Editor
         };
     }
 
+    /// <summary>
+    /// Flag with automatic face length: each face hugs its content with the left margin either
+    /// side. The content is kept against the start of its face, and side B moves with the fold.
+    /// </summary>
+    static void AutoFlag(LabelDocument doc)
+    {
+        var l = doc.Layout;
+        if (l.Kind != "flag" || !l.FlagAuto) return;
+        double circ = Circumference(l), middle = l.FlagLength + circ / 2, pad = doc.Margins.L;
+        var visible = doc.Nodes.Where(n => n.Visible).ToList();
+        var sideA = visible.Where(n => (Geo.Bounds(n)?.Cx ?? 0) < middle).ToList();
+        var sideB = l.Mirror ? new List<Node>() : visible.Except(sideA).ToList();
+        var a = Geo.Bounds(sideA);
+        var b = Geo.Bounds(sideB);
+        if (a is null && b is null) return;
+
+        double length = Math.Clamp(Math.Round(Math.Max(a?.W ?? 0, b?.W ?? 0) + 2 * pad, 1), 5, 300);
+        if (a is { } ra && Math.Abs(ra.X - pad) > 0.01)
+            foreach (var n in sideA) Geo.Translate(n, pad - ra.X, 0);
+        l.FlagLength = length;
+        double startB = length + circ + pad;
+        if (b is { } rb && Math.Abs(rb.X - startB) > 0.01)
+            foreach (var n in sideB) Geo.Translate(n, startB - rb.X, 0);
+    }
+
+    /// <summary>
+    /// Switch the flag's face length between automatic and fixed. Going automatic, text that was
+    /// scaled to fill a box keeps its current size and lets its box follow the text instead,
+    /// since a box that fills the face cannot also decide how long the face is.
+    /// </summary>
+    public void SetFlagAuto(bool auto)
+    {
+        if (Doc.Layout.FlagAuto == auto) return;
+        Mutate(() =>
+        {
+            Doc.Layout.FlagAuto = auto;
+            if (!auto) return;
+            foreach (var t in Geo.Walk(Doc.Nodes).OfType<TextNode>().Where(t => t.Mode == TextMode.Fit))
+            {
+                var m = _js.Invoke<double[]>("LM.textEditMetrics", (TextNode)Resolved(t));
+                double cy = t.Cy;
+                t.FontSize = Math.Max(2, Math.Round(m[0] / 0.3528 * 2) / 2);
+                t.Mode = TextMode.Auto;
+                Remeasure(t);
+                t.Y = cy - t.H / 2; // stay where the text was vertically
+            }
+        });
+        ZoomToFit();
+    }
+
     /// <summary>Copies the layout adds at draw time: wrap repeats, the mirrored flag face, printed fold lines.</summary>
     static IEnumerable<Node> LayoutCopies(LabelDocument doc, List<Node> items)
     {

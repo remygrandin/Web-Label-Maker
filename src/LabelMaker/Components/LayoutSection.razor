@@ -36,7 +36,17 @@
             </div>
             <div class="row">
                 <span class="lbl">Face length</span>
-                <div class="fill"><NumberField Unit="mm" Value="l.FlagLength" Min="5" Max="300" Step="1" Decimals="1" ValueChanged="v => Ed.UpdateLayout(x => x.FlagLength = v)" /></div>
+                <div class="seg fill">
+                    <button class="@(l.FlagAuto ? "" : "on")" title="Each face keeps the length you set" @onclick="() => Ed.SetFlagAuto(false)">Fixed</button>
+                    <button class="@(l.FlagAuto ? "on" : "")" title="Each face is as long as its content, plus the left margin either side" @onclick="() => Ed.SetFlagAuto(true)">Auto</button>
+                </div>
+            </div>
+            <div class="row">
+                <span class="lbl"></span>
+                <div class="fill">
+                    <NumberField Unit="mm" Value="l.FlagLength" Min="5" Max="300" Step="1" Decimals="1" Disabled="l.FlagAuto"
+                                 Title="@(l.FlagAuto ? "Set by the content" : "Length of each face")" ValueChanged="v => Ed.UpdateLayout(x => x.FlagLength = v)" />
+                </div>
             </div>
             <div class="row">
                 <span class="lbl">Side B</span>
