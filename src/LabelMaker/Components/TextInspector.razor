@@ -30,6 +30,13 @@
         </div>
     </div>
     <div class="row">
+        <span class="lbl">Letters</span>
+        <div class="seg fill">
+            <button class="@(Node.Stacked ? "" : "on")" title="Letters side by side, as usual" @onclick="() => Ed.Mutate(() => Node.Stacked = false)">In a row</button>
+            <button class="@(Node.Stacked ? "on" : "")" title="Upright letters one above the other; each line of text becomes a column" @onclick="() => Ed.Mutate(() => Node.Stacked = true)">Stacked</button>
+        </div>
+    </div>
+    <div class="row">
         <span class="lbl">Width</span>
         <div class="seg fill">
             <button class="@(Node.Mode == TextMode.Auto ? "on" : "")" title="The box grows and shrinks with the text" @onclick="() => SetMode(TextMode.Auto)">Auto</button>
@@ -41,7 +48,7 @@
         <div class="row">
             <span class="lbl">If too long</span>
             <div class="seg fill">
-                <button class="@(Node.Mode == TextMode.Wrap ? "on" : "")" title="Break onto new lines at the box edge; the font size stays" @onclick="() => SetMode(TextMode.Wrap)">Line break</button>
+                <button class="@(Node.Mode == TextMode.Wrap ? "on" : "")" title="@(Node.Stacked ? "Stacked letters do not wrap; the font size stays" : "Break onto new lines at the box edge; the font size stays")" @onclick="() => SetMode(TextMode.Wrap)">Line break</button>
                 <button class="@(Node.Mode == TextMode.Fit ? "on" : "")" title="Scale the text so it always fills the box" @onclick="() => SetMode(TextMode.Fit)">Fit size</button>
             </div>
         </div>

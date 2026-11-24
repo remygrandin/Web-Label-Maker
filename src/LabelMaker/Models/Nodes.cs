@@ -84,6 +84,8 @@ public sealed class TextNode : Node
     public double Tracking { get; set; }
     /// <summary>Auto: the box hugs the text. Wrap: fixed box, words wrap. Fit: the text scales to fill the box.</summary>
     public TextMode Mode { get; set; } = TextMode.Auto;
+    /// <summary>Upright letters one above the other; each line of text becomes a column.</summary>
+    public bool Stacked { get; set; }
     /// <summary>White text on a black box.</summary>
     public bool Invert { get; set; }
     public double Padding { get; set; }

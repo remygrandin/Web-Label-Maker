@@ -106,6 +106,21 @@
         string size = t.Mode == TextMode.Auto
             ? FormattableString.Invariant($"min-width:{t.W * z:0.##}px;min-height:{t.H * z:0.##}px;field-sizing:content;")
             : FormattableString.Invariant($"width:{t.W * z:0.##}px;height:{t.H * z:0.##}px;");
+        if (t.Stacked)
+        {
+            // the browser's own upright vertical text, pitched to match the drawn letters
+            double free = Math.Max(0, t.W - 2 * t.Padding - m[4]);
+            double left = t.Align switch { HAlign.Center => free / 2, HAlign.Right => free, _ => 0 };
+            FormattableString v = $"""
+                left:{Ed.PanX + t.X * z:0.##}px;top:{Ed.PanY + t.Y * z:0.##}px;{size}
+                padding:{pad + Math.Max(0, off) * z:0.##}px 0 0 {pad + left * z:0.##}px;
+                writing-mode:vertical-lr;text-orientation:upright;white-space:pre;
+                font-family:'{t.FontFamily}','IBM Plex Sans',sans-serif;font-size:{m[0] * z:0.###}px;line-height:{m[3] * z:0.###}px;
+                font-weight:{(t.Bold ? 700 : 400)};font-style:{(t.Italic ? "italic" : "normal")};letter-spacing:{t.LineHeight - 1:0.###}em;
+                transform:rotate({t.Rotation:0.##}deg);color:{(t.Invert ? "#fff" : "#000")};background:{(t.Invert ? "#000" : "#fff")};
+                """;
+            return FormattableString.Invariant(v).ReplaceLineEndings("");
+        }
         FormattableString css = $"""
             left:{Ed.PanX + t.X * z:0.##}px;top:{Ed.PanY + t.Y * z:0.##}px;{size}
             padding:{pad + Math.Max(0, off) * z:0.##}px {pad:0.##}px 0 {pad:0.##}px;

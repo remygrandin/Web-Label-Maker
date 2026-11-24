@@ -50,9 +50,18 @@
     function layoutText(n) {
         const fmm = Math.max(0.1, n.fontSize * MM_PER_PT);
         meas.font = fontOf(n, REF);
-        meas.letterSpacing = ((n.tracking || 0) / 1000 * REF) + 'px';
+        meas.letterSpacing = n.stacked ? '0px' : ((n.tracking || 0) / 1000 * REF) + 'px';
         const m = meas.measureText('Hg');
         const asc = m.fontBoundingBoxAscent ?? REF * 0.8, desc = m.fontBoundingBoxDescent ?? REF * 0.2;
+        if (n.stacked) {
+            // upright letters one above the other; each line of the text becomes a column
+            const cols = String(n.text ?? '').split('\n').map(s => Array.from(s));
+            const pitch = REF * (n.lineHeight || 1);
+            let cw = REF * 0.3;
+            for (const col of cols) for (const ch of col) cw = Math.max(cw, meas.measureText(ch).width);
+            const colPitch = cw * 1.15, count = Math.max(1, ...cols.map(c => c.length));
+            return { fmm, asc, desc, lh: pitch, stacked: true, cols, colPitch, lines: [], w: cols.length * colPitch, h: count * pitch };
+        }
         const lh = (asc + desc) * (n.lineHeight || 1);
         const pad = n.padding || 0;
         const lines = [];
@@ -94,7 +103,7 @@
         const pad = n.padding || 0;
         let k = L.fmm / REF;
         if (n.mode === 'Fit' && L.w && L.h) k = Math.min(Math.max(0.01, n.w - 2 * pad) / L.w, Math.max(0.01, n.h - 2 * pad) / L.h);
-        return [k * REF, L.lh * k, L.h * k];
+        return [k * REF, L.lh * k, L.h * k, (L.colPitch || 0) * k, L.w * k];
     };
 
     function drawText(ctx, n) {
@@ -115,6 +124,11 @@
         ctx.fillStyle = n.invert ? '#fff' : '#000';
         ctx.textBaseline = 'alphabetic';
         const base = (L.lh - (L.asc + L.desc)) / 2 + L.asc;
+        if (L.stacked) {
+            const bw = L.w * k, bx = n.align === 'Center' ? -bw / 2 : n.align === 'Right' ? iw / 2 - bw : -iw / 2;
+            ctx.letterSpacing = '0px'; ctx.textAlign = 'center';
+            L.cols.forEach((col, c) => col.forEach((ch, r) => ctx.fillText(ch, bx / k + (c + 0.5) * L.colPitch, y0 / k + r * L.lh + base)));
+        }
         L.lines.forEach((ln, i) => {
             const lw = ln.w * k;
             const x = n.align === 'Center' ? -lw / 2 : n.align === 'Right' ? iw / 2 - lw : -iw / 2;
