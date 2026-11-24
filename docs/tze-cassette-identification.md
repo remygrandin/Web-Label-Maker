@@ -120,6 +120,49 @@ give the complete code for this printer. Remember the combination already on you
 genuine cassettes: it tells you which plate number each known colour corresponds to and
 is a check that the numbering is the right way round.
 
+## Dummy cassette
+
+[cassette-shims/tze-dummy-cassette.scad](cassette-shims/tze-dummy-cassette.scad) is a
+stand-in for a cassette, so no real one has to be drilled. It is a base plate that seats
+in the cassette bay with:
+
+- a **pocket for each group of bottom pins**, taking a numbered card flush with the
+  underside (the bay floor holds the card in; open pins rise through a window above it);
+- an **upright holder in front of the side pins**, taking a card that slides in from above;
+- **posts up to cassette height**, so the closed lid holds it down against the pins' springs.
+
+It carries no tape and is only for reading what the printer reports.
+
+**Every dimension in the file is a placeholder.** It will not fit as it is. Measure
+these and enter them at the top of the file:
+
+| What | Parameters |
+|---|---|
+| Cassette outline seen from below, and its height | `body_w`, `body_d`, `corner_r`, `cassette_h` |
+| Spindles, rollers and posts in the bay: position and diameter | `clearances` |
+| Where the print head and platen enter the cassette | `cutouts` |
+| Each group of bottom pins: position of the first pin and the offsets of the others | `pockets` |
+| Pin diameter plus clearance | `open_d` |
+| Side pins: where they meet the cassette wall, their direction, and each pin's height | `side_at`, `side_angle`, `side_pin_z`, `side_pin_offset` |
+
+Positions are measured from the lower-left corner of the cassette seen from below. A
+flat, square-on photo of a cassette's underside next to a ruler, and one of the side
+with the pin holes, is enough to take most of these from.
+
+Parts to render (`part = …`): `base`, `bottom_set` (every card for the pocket chosen by
+`pocket_index`), `side_set`, or a single `bottom_card` / `side_card` by `number`. Print
+the base in draft first and correct it against the printer before printing cards.
+
+Card numbers follow the same rule as the probe shims: bottom card = P1×1 + P2×2 + P3×4
++ P4×8 + P5×16, side card = A×1 + B×2 + C×4 + D×8, with 1 meaning closed.
+
+Things that may stop it working, which only a trial will show:
+
+- The printer may check for more than the sense pins before reporting a cassette, such
+  as a lid switch or the tape itself.
+- Width and tape type are read from pins too. With the dummy, those are whatever the
+  cards say, so expect byte 10 and 11 to change along with the colour bytes.
+
 ## What the printer reports
 
 After a status request the printer answers with 32 bytes. WebLabelMaker reads:
