@@ -612,7 +612,10 @@
                 ctx.globalAlpha = 0.09; ctx.fillStyle = t.guide;
                 ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.rect(mx, my, mw, mh); ctx.fill('evenodd');
                 ctx.globalAlpha = 1; ctx.strokeStyle = t.guide; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
-                ctx.strokeRect(Math.round(mx) + 0.5, Math.round(my) + 0.5, Math.round(mw) - 1, Math.round(mh) - 1);
+                // on the same pixel rows and columns as selection boxes, so an edge snapped to a margin sits exactly on it
+                const edge = (pan, mm) => Math.round(pan + mm * z) + 0.5;
+                const gx0 = edge(f.panX, m.l), gx1 = edge(f.panX, f.docW - m.r), gy0 = edge(f.panY, m.t), gy1 = edge(f.panY, f.docH - m.b);
+                ctx.strokeRect(gx0, gy0, gx1 - gx0, gy1 - gy0);
                 ctx.restore();
             }
         }

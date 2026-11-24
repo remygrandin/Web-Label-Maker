@@ -104,11 +104,20 @@ public sealed class Library
         public string? CloneOf { get; set; }
     }
 
-    sealed class Orphan
+    /// <summary>A working copy kept by autosave: one per open tab, plus those left by closed tabs or set aside.</summary>
+    public sealed class AutosaveEntry
     {
         public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
         public string Modified { get; set; } = "";
+        public double W { get; set; }
+        public double H { get; set; }
+        public string? Thumb { get; set; }
+        /// <summary>An open tab is working on it right now.</summary>
+        public bool Live { get; set; }
     }
+
+    const string KeptPrefix = "autosave:kept-";
 
     /// <summary>Where this tab keeps its working label; every open tab has its own.</summary>
     string _autosaveKey = "autosave";
@@ -125,18 +134,21 @@ public sealed class Library
         if (json is null && tab.CloneOf is not null)
             json = await _js.InvokeAsync<string?>("LM.db.get", "meta", "autosave:" + tab.CloneOf);
 
-        var orphans = await _js.InvokeAsync<List<Orphan>>("LM.orphanAutosaves") ?? new();
+        var orphans = await _js.InvokeAsync<List<AutosaveEntry>>("LM.orphanAutosaves") ?? new();
         orphans.RemoveAll(o => o.Id == _autosaveKey);
-        if (json is null && orphans.Count > 0)
+        // labels set aside on purpose stay in the Autosaved list; only a closed tab's work is picked up
+        int next = orphans.FindIndex(o => !o.Id.StartsWith(KeptPrefix));
+        if (json is null && next >= 0)
         {
             // take over the working copy a closed tab left behind
-            json = await _js.InvokeAsync<string?>("LM.db.get", "meta", orphans[0].Id);
+            var o = orphans[next];
+            json = await _js.InvokeAsync<string?>("LM.db.get", "meta", o.Id);
             if (json is not null)
             {
-                await _js.InvokeVoidAsync("LM.db.put", "meta", new { id = _autosaveKey, json, modified = DateTime.UtcNow.ToString("o") });
-                await _js.InvokeVoidAsync("LM.db.del", "meta", orphans[0].Id);
+                await _js.InvokeVoidAsync("LM.db.put", "meta", new { id = _autosaveKey, json, modified = DateTime.UtcNow.ToString("o"), name = o.Name, w = o.W, h = o.H, thumb = o.Thumb });
+                await _js.InvokeVoidAsync("LM.db.del", "meta", o.Id);
             }
-            orphans.RemoveAt(0);
+            orphans.RemoveAt(next);
         }
         // working copies of tabs closed long ago are not kept for ever
         var cutoff = DateTime.UtcNow.AddDays(-30).ToString("o");
@@ -154,7 +166,7 @@ public sealed class Library
             if (json is not null && DocJson.Read<WorkingState>(json) is { } state)
             {
                 InLibrary = await _js.InvokeAsync<string?>("LM.db.get", Docs, state.Document.Id) is not null;
-                await _ed.Load(state.Document, state.Dirty && !InLibrary);
+                await _ed.Load(state.Document, state.Dirty);
                 SavedAt = DateTime.Now;
                 SaveError = null;
                 _restored = true;
@@ -183,13 +195,9 @@ public sealed class Library
     {
         try
         {
-            var json = DocJson.Write(new WorkingState { Document = Pack(_ed.Doc), Dirty = _ed.Dirty });
-            await Stored(_js.InvokeAsync<bool>("LM.db.put", "meta", new { id = _autosaveKey, json, modified = DateTime.UtcNow.ToString("o") }));
-            if (InLibrary)
-            {
-                await Put(Docs, _ed.Doc);
-                if (_ed.Dirty) { _ed.Dirty = false; _ed.Refresh(); }
-            }
+            // The working copy only. A label saved in the library is not touched here: that copy
+            // changes when the user saves (Ctrl+S), never behind their back.
+            await Stored(PutWorkingCopy(_autosaveKey));
             SavedAt = DateTime.Now;
             SaveError = null;
             Pending = false;
@@ -202,6 +210,49 @@ public sealed class Library
             Pending = false;
             StateChanged?.Invoke();
         }
+    }
+
+    async ValueTask<bool> PutWorkingCopy(string key)
+    {
+        var doc = _ed.Doc;
+        var json = DocJson.Write(new WorkingState { Document = Pack(doc), Dirty = _ed.Dirty });
+        string? thumb = null;
+        try { thumb = await _ed.Thumbnail(doc); } catch { /* a missing thumbnail is not worth failing a save */ }
+        return await _js.InvokeAsync<bool>("LM.db.put", "meta", new
+        {
+            id = key, json, modified = DateTime.UtcNow.ToString("o"), name = doc.Name, w = doc.WidthMm, h = doc.HeightMm, thumb,
+        });
+    }
+
+    // ---- autosaved labels ------------------------------------------------------------------
+
+    /// <summary>Raised when the list of autosaved labels changes.</summary>
+    public event Action? AutosavesChanged;
+
+    public bool IsOwnAutosave(string id) => id == _autosaveKey;
+
+    public async Task<List<AutosaveEntry>> ListAutosaves() =>
+        await _js.InvokeAsync<List<AutosaveEntry>>("LM.autosaves") ?? new();
+
+    /// <summary>Bring an autosaved label into this tab. One no tab is using moves here; one open elsewhere is copied.</summary>
+    public async Task OpenAutosave(AutosaveEntry entry)
+    {
+        if (entry.Id == _autosaveKey) return;
+        var json = await _js.InvokeAsync<string?>("LM.db.get", "meta", entry.Id);
+        if (json is null || DocJson.Read<WorkingState>(json) is not { } state) return;
+        await KeepCurrent();
+        InLibrary = await _js.InvokeAsync<string?>("LM.db.get", Docs, state.Document.Id) is not null;
+        await _ed.Load(state.Document, state.Dirty);
+        await Autosave();
+        if (!entry.Live) await _js.InvokeVoidAsync("LM.db.del", "meta", entry.Id);
+        AutosavesChanged?.Invoke();
+    }
+
+    public async Task DeleteAutosave(string id)
+    {
+        if (id == _autosaveKey) return;
+        await _js.InvokeVoidAsync("LM.db.del", "meta", id);
+        AutosavesChanged?.Invoke();
     }
 
     /// <summary>A copy of the document carrying only the image assets it still uses.</summary>
@@ -283,13 +334,17 @@ public sealed class Library
         }
     }
 
-    /// <summary>Unsaved work is never dropped: it is filed in the library before the bench is cleared.</summary>
+    /// <summary>
+    /// Unsaved work is never dropped: before the bench is cleared it is set aside as an autosaved
+    /// label (Library → Autosaved). The library itself is only written when the user saves.
+    /// </summary>
     async Task KeepCurrent()
     {
         if (_ed.Dirty && _ed.Doc.Nodes.Count > 0)
         {
-            await Save(quiet: true);
-            _shell.Toast($"“{_ed.Doc.Name}” was saved to the library first.");
+            await PutWorkingCopy(KeptPrefix + Ids.New());
+            AutosavesChanged?.Invoke();
+            _shell.Toast($"“{_ed.Doc.Name}” had unsaved changes: kept under Library → Autosaved.");
         }
     }
 
@@ -395,7 +450,6 @@ public sealed class Library
     /// <summary>Everything stored locally (labels and user templates) in one file.</summary>
     public async Task ExportArchive()
     {
-        if (_ed.Dirty && _ed.Doc.Nodes.Count > 0) await Save(quiet: true);
         var file = new LabelFile { Kind = "archive", Documents = await All(Docs), Templates = await All(Templates), Images = await ListImages() };
         await Download($"weblabelmaker-archive-{DateTime.Now:yyyy-MM-dd}.json", file);
         _shell.Toast($"Exported {file.Documents.Count} labels, {file.Templates.Count} templates and {file.Images.Count} images.");

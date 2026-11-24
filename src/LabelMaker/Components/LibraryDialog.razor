@@ -7,8 +7,9 @@
     <div class="dialog">
         <div class="dhead">
             <div class="tabs">
-                <button class="tab @(_templates ? "" : "on")" @onclick="() => _templates = false">My labels</button>
-                <button class="tab @(_templates ? "on" : "")" @onclick="() => _templates = true">Templates</button>
+                <button class="tab @(_tab == 0 ? "on" : "")" @onclick="() => _tab = 0">My labels</button>
+                <button class="tab @(_tab == 1 ? "on" : "")" @onclick="() => _tab = 1">Templates</button>
+                <button class="tab @(_tab == 2 ? "on" : "")" title="Working copies saved automatically: one per open tab, plus unsaved work that was set aside" @onclick="() => _tab = 2">Autosaved</button>
             </div>
             <span class="grow"></span>
             <button class="btn sm" title="Import a label, a template or a full archive (.json)" @onclick="Lib.Import"><Icon Name="upload" />Import…</button>
@@ -16,7 +17,34 @@
             <button class="ibtn" title="Close" @onclick="Shell.Close"><Icon Name="x" /></button>
         </div>
         <div class="dbody">
-            @if (!_templates)
+            @if (_tab == 2)
+            {
+                <div class="cards">
+                    @foreach (var a in _autos)
+                    {
+                        var entry = a;
+                        bool own = Lib.IsOwnAutosave(entry.Id);
+                        <div class="card">
+                            <button class="card-thumb" disabled="@own" title="@(own ? "This is the label you are working on" : entry.Live ? "Open a copy in this tab" : "Open in this tab")" @onclick="() => OpenAuto(entry)">
+                                @if (entry.Thumb is not null) { <img src="@entry.Thumb" alt="" /> }
+                            </button>
+                            <div class="card-meta">
+                                <div class="t">
+                                    <div class="n">@(entry.Name.Length > 0 ? entry.Name : "Untitled label")</div>
+                                    <div class="s">@When(entry.Modified)</div>
+                                </div>
+                                @if (own) { <span class="tag">This tab</span> }
+                                else if (entry.Live) { <span class="tag">Other tab</span> }
+                                else
+                                {
+                                    <button class="ibtn sm" title="Delete this autosaved label" @onclick="() => Lib.DeleteAutosave(entry.Id)"><Icon Name="trash" /></button>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else if (_tab == 0)
             {
                 @if (_docs.Count == 0)
                 {
@@ -84,7 +112,11 @@
             }
         </div>
         <div class="dfoot">
-            @if (_templates)
+            @if (_tab == 2)
+            {
+                <span class="hint" style="margin:0">Autosaved labels never change your library. Open one and use File → Save to keep it there.</span>
+            }
+            else if (_tab == 1)
             {
                 <button class="btn" @onclick="Lib.SaveAsTemplate"><Icon Name="template" />Save current label as template</button>
             }
@@ -102,13 +134,15 @@
     static readonly List<LabelDocument> BuiltIn = BuiltInTemplates.All();
     static readonly Dictionary<string, string> Thumbs = new();
 
-    bool _templates;
+    int _tab; // 0 labels, 1 templates, 2 autosaved
     List<LibraryEntry> _docs = new(), _userTemplates = new();
+    List<Library.AutosaveEntry> _autos = new();
 
     protected override async Task OnInitializedAsync()
     {
-        _templates = Shell.Dialog == Dialog.Templates;
+        _tab = Shell.Dialog == Dialog.Templates ? 1 : 0;
         Lib.Changed += Reload;
+        Lib.AutosavesChanged += Reload;
         await Load();
         foreach (var doc in BuiltIn)
         {
@@ -122,6 +156,7 @@
     {
         _docs = await Lib.List(Library.Docs);
         _userTemplates = await Lib.List(Library.Templates);
+        _autos = await Lib.ListAutosaves();
         StateHasChanged();
     }
 
@@ -150,5 +185,15 @@
     static string When(string iso) =>
         DateTime.TryParse(iso, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var d) ? d.ToLocalTime().ToString("d MMM yyyy, HH:mm", CultureInfo.InvariantCulture) : "";
 
-    public void Dispose() => Lib.Changed -= Reload;
+    async Task OpenAuto(Library.AutosaveEntry entry)
+    {
+        Shell.Close();
+        await Lib.OpenAutosave(entry);
+    }
+
+    public void Dispose()
+    {
+        Lib.Changed -= Reload;
+        Lib.AutosavesChanged -= Reload;
+    }
 }

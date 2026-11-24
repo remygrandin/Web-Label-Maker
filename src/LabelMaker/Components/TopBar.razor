@@ -15,7 +15,7 @@
     else
     {
         <span class="autosave @(Lib.Pending ? "pending" : "")" title="@SaveTip">
-            <i></i>@(Lib.Pending ? "Saving…" : Lib.SavedAt is { } at ? $"Autosaved {at:HH:mm:ss}" : "Autosave on")@(Lib.InLibrary ? " · in library" : "")
+            <i></i>@(Lib.Pending ? "Saving…" : Lib.SavedAt is { } at ? $"Autosaved {at:HH:mm:ss}" : "Autosave on")@(!Lib.InLibrary ? "" : Ed.Dirty ? " · library copy not updated" : " · in library")
         </span>
     }
     <span class="top-spacer"></span>
@@ -31,7 +31,7 @@
     [Parameter] public RenderFragment? Actions { get; set; }
 
     string SaveTip => Lib.InLibrary
-        ? "Every change is saved automatically, both as the working label and to its entry in the library."
+        ? "Every change is saved automatically as this tab's working copy. The copy in the library only changes when you save (Ctrl+S)."
         : "Every change is saved automatically in this browser. Use File → Save to library to keep it as a named label.";
 
     protected override void OnInitialized()

@@ -108,15 +108,20 @@
         return { id, cloneOf };
     };
 
-    // Working copies no open tab is using, newest first: [{ id, modified }]
-    LM.orphanAutosaves = async () => {
+    // Every working copy, newest first: [{ id, name, modified, w, h, thumb, live }].
+    // live = an open tab is using it right now.
+    LM.autosaves = async () => {
         const all = ((await tx('meta', 'readonly', s => s.getAll())) || []).filter(r => String(r.id).startsWith('autosave'));
-        let live = new Set();
-        try { live = new Set(((await navigator.locks?.query())?.held || []).map(l => l.name)); } catch { /* treat all as free */ }
-        return all.filter(r => !live.has(LOCK + String(r.id).slice('autosave:'.length)))
-            .map(r => ({ id: r.id, modified: String(r.modified || '') }))
-            .sort((a, b) => b.modified.localeCompare(a.modified));
+        let held = new Set();
+        try { held = new Set(((await navigator.locks?.query())?.held || []).map(l => l.name)); } catch { /* treat all as free */ }
+        return all.map(r => ({
+            id: r.id, name: r.name || '', modified: String(r.modified || ''), w: r.w || 0, h: r.h || 0, thumb: r.thumb || null,
+            live: held.has(LOCK + String(r.id).slice('autosave:'.length)),
+        })).sort((a, b) => b.modified.localeCompare(a.modified));
     };
+
+    // Working copies no open tab is using, newest first.
+    LM.orphanAutosaves = async () => (await LM.autosaves()).filter(r => !r.live);
 
     // ---- files -----------------------------------------------------------------------
     LM.download = (name, text, mime) => {
