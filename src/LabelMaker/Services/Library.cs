@@ -72,6 +72,30 @@ public sealed class Library
     /// <summary>Raised when stored labels or templates change.</summary>
     public event Action? Changed;
 
+    /// <summary>Why the last save did not go through, in words for the user; null when saving works.</summary>
+    public string? SaveError { get; private set; }
+
+    const string BlockedText = "Not saved: another WebLabelMaker tab is still running an older version. Close or reload the other tabs.";
+    bool _restored;
+
+    /// <summary>
+    /// Wait for a storage call. If it stalls, say why: an older copy of the app open in
+    /// another tab keeps the database from being upgraded, and the call only finishes once that tab is gone.
+    /// </summary>
+    async Task<T> Stored<T>(ValueTask<T> call)
+    {
+        var task = call.AsTask();
+        if (await Task.WhenAny(task, Task.Delay(4000)) != task)
+        {
+            bool blocked = false;
+            try { blocked = await _js.InvokeAsync<bool>("LM.db.isBlocked"); } catch { /* keep waiting */ }
+            SaveError = blocked ? BlockedText : "Saving is taking longer than usual…";
+            StateChanged?.Invoke();
+            if (blocked) _shell.Toast(BlockedText);
+        }
+        return await task;
+    }
+
     // ---- working copy -------------------------------------------------------------------
 
     /// <summary>Reopen whatever was on the bench last time.</summary>
@@ -79,22 +103,28 @@ public sealed class Library
     {
         try
         {
-            var json = await _js.InvokeAsync<string?>("LM.db.get", "meta", "autosave");
+            var json = await Stored(_js.InvokeAsync<string?>("LM.db.get", "meta", "autosave"));
             if (json is not null && DocJson.Read<WorkingState>(json) is { } state)
             {
                 InLibrary = await _js.InvokeAsync<string?>("LM.db.get", Docs, state.Document.Id) is not null;
                 await _ed.Load(state.Document, state.Dirty && !InLibrary);
                 SavedAt = DateTime.Now;
+                SaveError = null;
+                _restored = true;
                 StateChanged?.Invoke();
                 return;
             }
         }
         catch (Exception ex) { Console.Error.WriteLine($"Autosave restore failed: {ex.Message}"); }
+        SaveError = null;
+        _restored = true;
         await _ed.Load(BuiltInTemplates.Starter());
     }
 
     async void ScheduleAutosave()
     {
+        // until the last session has been read back, saving would overwrite it
+        if (!_restored) return;
         _debounce?.Cancel();
         if (!Pending) { Pending = true; StateChanged?.Invoke(); }
         var cts = _debounce = new CancellationTokenSource();
@@ -107,19 +137,21 @@ public sealed class Library
         try
         {
             var json = DocJson.Write(new WorkingState { Document = Pack(_ed.Doc), Dirty = _ed.Dirty });
-            await _js.InvokeVoidAsync("LM.db.put", "meta", new { id = "autosave", json });
+            await Stored(_js.InvokeAsync<bool>("LM.db.put", "meta", new { id = "autosave", json }));
             if (InLibrary)
             {
                 await Put(Docs, _ed.Doc);
                 if (_ed.Dirty) { _ed.Dirty = false; _ed.Refresh(); }
             }
             SavedAt = DateTime.Now;
+            SaveError = null;
             Pending = false;
             StateChanged?.Invoke();
         }
         catch (Exception ex)
         {
             Console.Error.WriteLine($"Autosave failed: {ex.Message}");
+            SaveError = $"Not saved: {ex.Message}";
             Pending = false;
             StateChanged?.Invoke();
         }

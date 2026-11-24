@@ -46,8 +46,17 @@
         req.onupgradeneeded = () => {
             for (const s of ['docs', 'templates', 'meta', 'images']) if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s, { keyPath: 'id' });
         };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+        // Another tab still running an older version of the app holds the database open and
+        // stops the upgrade. The request stays pending and goes through once that tab is closed.
+        req.onblocked = () => { LM.db.blocked = true; };
+        req.onsuccess = () => {
+            LM.db.blocked = false;
+            // let a newer version of the app upgrade the database instead of blocking it
+            req.result.onversionchange = () => { req.result.close(); dbp = null; };
+            req.result.onclose = () => { dbp = null; };
+            resolve(req.result);
+        };
+        req.onerror = () => { dbp = null; reject(req.error); };
     });
     const tx = async (store, mode, fn) => {
         const d = await db();
@@ -61,6 +70,8 @@
     };
 
     LM.db = {
+        blocked: false,
+        isBlocked: () => LM.db.blocked,
         put: (store, rec) => tx(store, 'readwrite', s => s.put(rec)).then(() => true),
         del: (store, id) => tx(store, 'readwrite', s => s.delete(id)).then(() => true),
         get: async (store, id) => (await tx(store, 'readonly', s => s.get(id)))?.json ?? null,

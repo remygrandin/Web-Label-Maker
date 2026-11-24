@@ -8,9 +8,16 @@
     <span class="top-sep"></span>
     <input class="docname" value="@Ed.Doc.Name" spellcheck="false" title="Label name"
            @onchange="e => Rename(e.Value?.ToString())" />
-    <span class="autosave @(Lib.Pending ? "pending" : "")" title="@SaveTip">
-        <i></i>@(Lib.Pending ? "Saving…" : Lib.SavedAt is { } at ? $"Autosaved {at:HH:mm:ss}" : "Autosave on")@(Lib.InLibrary ? " · in library" : "")
-    </span>
+    @if (Lib.SaveError is { } error)
+    {
+        <span class="autosave failed" title="@error"><i></i>@error</span>
+    }
+    else
+    {
+        <span class="autosave @(Lib.Pending ? "pending" : "")" title="@SaveTip">
+            <i></i>@(Lib.Pending ? "Saving…" : Lib.SavedAt is { } at ? $"Autosaved {at:HH:mm:ss}" : "Autosave on")@(Lib.InLibrary ? " · in library" : "")
+        </span>
+    }
     <span class="top-spacer"></span>
     <button class="ibtn" title="Undo (Ctrl+Z)" disabled="@(!Ed.CanUndo)" @onclick="Ed.Undo"><Icon Name="undo" /></button>
     <button class="ibtn" title="Redo (Ctrl+Y)" disabled="@(!Ed.CanRedo)" @onclick="Ed.Redo"><Icon Name="redo" /></button>
