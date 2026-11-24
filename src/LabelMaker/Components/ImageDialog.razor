@@ -4,8 +4,8 @@
 @inject Shell Shell
 @inject IJSRuntime JS
 
-<div class="scrim" @onclick="Shell.Close">
-    <div class="dialog" @onclick:stopPropagation="true">
+<div class="scrim">
+    <div class="dialog">
         <div class="dhead">
             <div class="tabs">
                 <button class="tab @(_icons ? "" : "on")" @onclick="() => _icons = false">My images</button>

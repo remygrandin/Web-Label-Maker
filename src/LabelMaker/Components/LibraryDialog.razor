@@ -3,8 +3,8 @@
 @inject Editor Ed
 @inject Shell Shell
 
-<div class="scrim" @onclick="Shell.Close">
-    <div class="dialog" @onclick:stopPropagation="true">
+<div class="scrim">
+    <div class="dialog">
         <div class="dhead">
             <div class="tabs">
                 <button class="tab @(_templates ? "" : "on")" @onclick="() => _templates = false">My labels</button>
