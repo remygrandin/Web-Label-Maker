@@ -18,6 +18,8 @@
         if (e.target?.id === 'cell-text' && (e.key === 'Tab' || e.key === 'Enter')) e.preventDefault();
     }, true);
 
+    LM.scrollTop = (selector) => { const el = document.querySelector(selector); if (el) el.scrollTop = 0; };
+
     LM.focus = (selector, select) => {
         const el = document.querySelector(selector);
         if (!el) return;

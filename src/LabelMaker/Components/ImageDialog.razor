@@ -81,11 +81,19 @@
                             </button>
                         }
                     </div>
-                    <div class="row" style="margin-top:12px">
-                        <span class="hint" style="margin:0">@_results.Count of @_total@(_total >= 999 ? "+" : "") matches</span>
-                        @if (_total > _results.Count)
+                    <div class="pager">
+                        <span class="hint" style="margin:0">@(_page * Page + 1)–@(_page * Page + _results.Count) of @_total@(_total >= 999 ? "+" : "") matches</span>
+                        <span class="grow"></span>
+                        @if (Pages > 1)
                         {
-                            <button class="btn sm" disabled="@_busy" @onclick="() => SearchSoon(0, more: true)">Show @Math.Min(Page, _total - _results.Count) more</button>
+                            <button class="ibtn sm" title="Previous page" disabled="@(_busy || _page == 0)" @onclick="() => SearchSoon(0, _page - 1)"><Icon Name="chev-left" /></button>
+                            @foreach (int p in PageList())
+                            {
+                                int page = p;
+                                if (page < 0) { <span class="gap">…</span> }
+                                else { <button class="pg @(page == _page ? "on" : "")" disabled="@_busy" @onclick="() => SearchSoon(0, page)">@(page + 1)</button> }
+                            }
+                            <button class="ibtn sm" title="Next page" disabled="@(_busy || _page >= Pages - 1)" @onclick="() => SearchSoon(0, _page + 1)"><Icon Name="chev-right" /></button>
                         }
                     </div>
                 }
@@ -133,8 +141,8 @@
     // the last search survives closing the dialog
     static string _query = "", _searched = "";
     static List<IconItem>? _results;
-    static int _total, _shown = Page;
-    const int Page = 96;
+    static int _total, _page;
+    const int Page = 105;
 
     bool _icons, _busy;
     string? _error;
@@ -187,7 +195,21 @@
     }
 
     // Wait for a pause in the typing, so each word costs one search rather than one per letter.
-    async Task SearchSoon(int delay = 450, bool more = false)
+    static int Pages => (_total + Page - 1) / Page;
+
+    // first, last and the pages around the current one; -1 marks a gap
+    static IEnumerable<int> PageList()
+    {
+        int last = -1;
+        for (int p = 0; p < Pages; p++)
+        {
+            if (p != 0 && p != Pages - 1 && Math.Abs(p - _page) > 2) continue;
+            if (p - last > 1) yield return -1;
+            yield return last = p;
+        }
+    }
+
+    async Task SearchSoon(int delay = 450, int page = 0)
     {
         _typing?.Cancel();
         var cts = _typing = new CancellationTokenSource();
@@ -195,15 +217,18 @@
         if (q.Length < 1) { _busy = false; return; }
         try { await Task.Delay(delay, cts.Token); } catch (TaskCanceledException) { return; }
 
-        // drawings are fetched a page at a time; "Show more" asks for one page further
-        _shown = more ? _shown + Page : Page;
+        // drawings are fetched one page at a time
         _busy = true; _error = null;
         StateHasChanged();
-        var r = await JS.InvokeAsync<IconResult>("LM.iconSearch", q, Shell.Settings.IconsMono, _shown);
+        var r = await JS.InvokeAsync<IconResult>("LM.iconSearch", q, Shell.Settings.IconsMono, page * Page, Page);
         if (r.Stale || cts.IsCancellationRequested) return;
         _busy = false;
         _error = r.Error;
-        if (r.Error is null) { _searched = q; _results = r.Icons; _total = r.Total; }
+        if (r.Error is null)
+        {
+            _searched = q; _results = r.Icons; _total = r.Total; _page = page;
+            await JS.InvokeVoidAsync("LM.scrollTop", ".dialog .dbody");
+        }
     }
 
     async Task PlaceIcon(IconItem icon)

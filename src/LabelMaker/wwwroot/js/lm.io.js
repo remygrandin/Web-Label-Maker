@@ -231,9 +231,9 @@
         return { ids: (await res.json()).icons || [] };
     }
 
-    // The first `count` matches with their drawings; ask again with a larger count for more.
+    // One page of matches with their drawings: `count` icons from index `start`.
     // -> { icons: [{ id, dataUrl, w, h }], total, error, stale }
-    LM.iconSearch = async (query, mono, count) => {
+    LM.iconSearch = async (query, mono, start, count) => {
         const seq = ++searchSeq, alive = () => seq === searchSeq;
         const none = (error, stale) => ({ icons: [], total: 0, error: error || null, stale: !!stale });
         try {
@@ -245,7 +245,7 @@
                 searchCache.set(key, found);
             }
             if (!alive()) return none(null, true);
-            const page = found.ids.slice(0, Math.max(1, count || 96));
+            const from = Math.max(0, start || 0), page = found.ids.slice(from, from + Math.max(1, count || 105));
             const error = await loadIcons(page, alive);
             if (!alive()) return none(null, true);
             const icons = page.map(id => iconCache.get(id)).filter(Boolean);
