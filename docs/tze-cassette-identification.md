@@ -4,11 +4,13 @@ How a P-touch printer knows which tape is loaded, what it reports to WebLabelMak
 and how to work out the hole pattern for a given colour so a third-party cassette can
 be made to report correctly.
 
-**Status of this document: the hole-to-colour table is not filled in.** No published
-source documents it (see [Sources](#sources)), and inventing one would send you
-printing shims that do not work. What follows is what is established, the codes the
-printer reports, and a procedure to map the patterns on your own printer. The
-worksheet at the end is where the real table goes once measured.
+**Status of this document: the hole-to-colour table is not filled in.** A community
+project has decoded seven cassettes on another printer (see
+[What others have measured](#what-others-have-measured)), which is a start but not a
+table, and it covers a different group of holes from the one the PT-E560BT reads.
+What follows is what is established, the codes the printer reports, and a set of
+numbered probe shims to map all 32 combinations on your own printer. The worksheet at
+the end is where the real table goes once measured.
 
 ## What is established
 
@@ -28,9 +30,95 @@ worksheet at the end is where the real table goes once measured.
   switch ON**, and the three switches together give tape width and cassette type
   (laminated, non-laminated, fabric). That manual says nothing about colour. Treat
   the polarity as likely but unconfirmed for the E560BT.
-- **Which group carries colour is not documented.** The older corner group predates
-  colour reporting, so the middle and side groups are the likely candidates. This is
-  an inference, not a measurement.
+- **Which group carries colour is not documented by Brother.** Measurements on a
+  PT-P300BT point to the bottom-middle group (see below). The PT-E560BT reads a
+  different group, at the cassette's left edge, so the same information must also be
+  encoded there; how is what remains to be mapped.
+
+## What others have measured
+
+[GoganGogan/Brother-TZe-Tapes](https://github.com/GoganGogan/Brother-TZe-Tapes), based
+on JongHun Lee's Hackaday project on a PT-P300BT, names nine sense positions: `ABCD` on
+the print-head side and `EFGHI` on the bottom, in the middle. `0` is an open hole, `1` a
+closed one. Only seven cassettes have been filled in:
+
+| Cassette | Tape | `ABCD` | `EFGHI` |
+|---|---|---|---|
+| TZe-241 | 18 mm, black on white | `0011` | `00101` |
+| TZe-251 | 24 mm, black on white | `0001` | `00101` |
+| TZe-FX251 | 24 mm flexible ID, black on white | `0001` | `00101` |
+| TZe-651 | 24 mm, black on yellow | `0001` | `00110` |
+| TZe-S641 | 18 mm strong adhesive, black on yellow | `1100` | `00110` |
+| HSe-211 | 5.8 mm heat-shrink, black on white | `1000` | `00101` |
+| HSe-241 | 17.7 mm heat-shrink, black on white | `0000` | `00101` |
+
+What this suggests, with only two colours to compare:
+
+- `ABCD` changes with width and tape type and not with colour.
+- `EFGHI` is `00101` for every black-on-white cassette and `00110` for both
+  black-on-yellow ones, so colour is in that group, at least in its last two positions.
+
+That is on a PT-P300BT, reading the bottom-middle group. It does not say what the other
+30 combinations mean, and it is not the group the E560BT reads.
+
+## The PT-E560BT
+
+Observed on the printer (by its owner, not from documentation): it has **five sense
+pins** on the group of six holes at the cassette's left edge. That group is two columns:
+four holes on the left, two on the right. The pins read the four left holes and the
+lower of the two right holes; the upper right hole is not read.
+
+Five pins give 32 combinations. The pin numbering used by the probe shims:
+
+```
+P1  .      left column, top       (. = not read)
+P2  P5     left column / right column, lower hole
+P3
+P4         left column, bottom
+```
+
+Whether this group encodes colour alone, or colour together with something else, is
+what the shims are for.
+
+## Probe shims
+
+[cassette-shims/tze-probe-shims.scad](cassette-shims/tze-probe-shims.scad) is an
+OpenSCAD model of 32 numbered plates. Each plate leaves some of the five positions open
+and closes the rest.
+
+![The 32 plates](cassette-shims/tze-probe-shims.png)
+
+**Plate number = P1×1 + P2×2 + P3×4 + P4×8 + P5×16**, where 1 means *closed* (the pin is
+pushed in). Plate 0 leaves all five open; plate 31 closes all five. The number is cut
+into the handle.
+
+Before printing the set:
+
+1. **The dimensions in the file are estimates taken from a photograph.** Measure the
+   hole pitch and diameter with calipers and correct `col_pitch`, `row_pitch`, `p5_row`
+   and `open_d` at the top of the file.
+2. **Check the fit on paper first.**
+   [cassette-shims/tze-probe-shims.svg](cassette-shims/tze-probe-shims.svg) is the same
+   set at 1:1. Print it at 100%, cut out plate 0 and lay it over the holes. It is
+   generated from the default dimensions, so it only matches the model until you change them.
+3. **Print one plate** (`only = 0`) and check that all five pins pass through it and the
+   lid closes without force, then print the rest.
+
+The base cassette matters:
+
+- A plate can only **close** a position. To reach all 32 combinations the cassette
+  under it must have all five positions **open**. No genuine cassette is likely to, so
+  use an empty or sacrificial cassette and drill the five positions through.
+- Keep everything else on that cassette as it is, so the printer still sees a valid
+  width and type.
+- The plate sits under the cassette and lifts it by its thickness (0.4 mm by default).
+  That is fine for reading the status. Do not print labels with a plate fitted.
+
+For each plate: fit it, close the lid, press **Refresh** in the printer panel, and write
+down bytes 10, 11, 24 and 25 in the [probe table](#probe-table). Thirty-two readings
+give the complete code for this printer. Remember the combination already on your
+genuine cassettes: it tells you which plate number each known colour corresponds to and
+is a check that the numbering is the right way round.
 
 ## What the printer reports
 
@@ -143,8 +231,47 @@ Blocking test, one cassette:
 | 2 | | | | |
 | 3 | | | | |
 
-Once a few rows are filled in, the colour table can be written here properly and the
-app's colour names checked against it.
+### Probe table
+
+One row per probe shim. `C` = closed, `O` = open.
+
+| Plate | P1 | P2 | P3 | P4 | P5 | Byte 10 | Byte 11 | Byte 24 | Byte 25 | Reads as |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | O | O | O | O | O | | | | | |
+| 1 | C | O | O | O | O | | | | | |
+| 2 | O | C | O | O | O | | | | | |
+| 3 | C | C | O | O | O | | | | | |
+| 4 | O | O | C | O | O | | | | | |
+| 5 | C | O | C | O | O | | | | | |
+| 6 | O | C | C | O | O | | | | | |
+| 7 | C | C | C | O | O | | | | | |
+| 8 | O | O | O | C | O | | | | | |
+| 9 | C | O | O | C | O | | | | | |
+| 10 | O | C | O | C | O | | | | | |
+| 11 | C | C | O | C | O | | | | | |
+| 12 | O | O | C | C | O | | | | | |
+| 13 | C | O | C | C | O | | | | | |
+| 14 | O | C | C | C | O | | | | | |
+| 15 | C | C | C | C | O | | | | | |
+| 16 | O | O | O | O | C | | | | | |
+| 17 | C | O | O | O | C | | | | | |
+| 18 | O | C | O | O | C | | | | | |
+| 19 | C | C | O | O | C | | | | | |
+| 20 | O | O | C | O | C | | | | | |
+| 21 | C | O | C | O | C | | | | | |
+| 22 | O | C | C | O | C | | | | | |
+| 23 | C | C | C | O | C | | | | | |
+| 24 | O | O | O | C | C | | | | | |
+| 25 | C | O | O | C | C | | | | | |
+| 26 | O | C | O | C | C | | | | | |
+| 27 | C | C | O | C | C | | | | | |
+| 28 | O | O | C | C | C | | | | | |
+| 29 | C | O | C | C | C | | | | | |
+| 30 | O | C | C | C | C | | | | | |
+| 31 | C | C | C | C | C | | | | | |
+
+Once the table is filled in, the colour codes can be written here properly and the
+app's colour names checked against them.
 
 ## Sources
 
@@ -154,5 +281,7 @@ app's colour names checked against it.
   sense pins on a PT-1090; a commenter says they also carry width and print energy; no table.
 - [Brother PT-H100 service manual, "Identification of tape cassette type"](https://www.manualslib.com/manual/1307233/Brother-Pt-H100.html?page=23):
   three switches, closed hole = switch on, width and cassette type only.
-- A Hackaday project on the PT-P300BT cassette holes exists but could not be read
-  when this was written; it is not reflected here.
+- [GoganGogan/Brother-TZe-Tapes](https://github.com/GoganGogan/Brother-TZe-Tapes):
+  the seven decoded cassettes quoted above and a photo labelling the nine positions,
+  based on [JongHun Lee's Hackaday project](https://hackaday.io/project/190126-brother-label-tape-hack)
+  on a PT-P300BT. The Hackaday page itself could not be read when this was written.

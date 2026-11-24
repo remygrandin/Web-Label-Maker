@@ -1,0 +1,324 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="156.6mm" height="61.4mm" viewBox="0 0 156.6 61.4">
+  <!-- TZe probe shims at 1:1 (millimetres). Generated from the defaults in tze-probe-shims.scad: estimates, measure before use. -->
+  <!-- Print on paper at 100% and lay a plate over the cassette holes to check the dimensions. Open positions are circles. -->
+  <g id="plate-0">
+    <rect x="3" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="12" y1="3" x2="12" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="14.2" cy="5.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="10" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="17" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="7.5" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">0</text>
+  </g>
+  <g id="plate-1">
+    <rect x="22.2" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="31.2" y1="3" x2="31.2" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="33.4" cy="5.2" r="0.25" fill="#000"/>
+    <circle cx="33.4" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="10" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="36.2" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="26.7" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">1</text>
+  </g>
+  <g id="plate-2">
+    <rect x="41.4" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="50.4" y1="3" x2="50.4" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="52.6" cy="5.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="7.6" r="0.25" fill="#000"/>
+    <circle cx="52.6" cy="10" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="55.4" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="45.9" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">2</text>
+  </g>
+  <g id="plate-3">
+    <rect x="60.6" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="69.6" y1="3" x2="69.6" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="71.8" cy="5.2" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="7.6" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="10" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="71.8" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="74.6" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="65.1" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">3</text>
+  </g>
+  <g id="plate-4">
+    <rect x="79.8" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="88.8" y1="3" x2="88.8" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="91" cy="5.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="10" r="0.25" fill="#000"/>
+    <circle cx="91" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="93.8" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="84.3" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">4</text>
+  </g>
+  <g id="plate-5">
+    <rect x="99" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="108" y1="3" x2="108" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="110.2" cy="5.2" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="110.2" cy="10" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="113" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="103.5" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">5</text>
+  </g>
+  <g id="plate-6">
+    <rect x="118.2" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="127.2" y1="3" x2="127.2" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="129.4" cy="5.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="129.4" cy="7.6" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="10" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="132.2" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="122.7" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">6</text>
+  </g>
+  <g id="plate-7">
+    <rect x="137.4" y="3" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="146.4" y1="3" x2="146.4" y2="14.6" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="148.6" cy="5.2" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="7.6" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="10" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="12.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="151.4" cy="7.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="141.9" y="10.3" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">7</text>
+  </g>
+  <g id="plate-8">
+    <rect x="3" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="12" y1="17.6" x2="12" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="14.2" cy="19.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="24.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="27" r="0.25" fill="#000"/>
+    <circle cx="17" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="7.5" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">8</text>
+  </g>
+  <g id="plate-9">
+    <rect x="22.2" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="31.2" y1="17.6" x2="31.2" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="33.4" cy="19.8" r="0.25" fill="#000"/>
+    <circle cx="33.4" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="24.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="27" r="0.25" fill="#000"/>
+    <circle cx="36.2" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="26.7" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">9</text>
+  </g>
+  <g id="plate-10">
+    <rect x="41.4" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="50.4" y1="17.6" x2="50.4" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="52.6" cy="19.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="22.2" r="0.25" fill="#000"/>
+    <circle cx="52.6" cy="24.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="27" r="0.25" fill="#000"/>
+    <circle cx="55.4" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="45.9" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">10</text>
+  </g>
+  <g id="plate-11">
+    <rect x="60.6" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="69.6" y1="17.6" x2="69.6" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="71.8" cy="19.8" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="22.2" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="24.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="71.8" cy="27" r="0.25" fill="#000"/>
+    <circle cx="74.6" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="65.1" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">11</text>
+  </g>
+  <g id="plate-12">
+    <rect x="79.8" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="88.8" y1="17.6" x2="88.8" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="91" cy="19.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="24.6" r="0.25" fill="#000"/>
+    <circle cx="91" cy="27" r="0.25" fill="#000"/>
+    <circle cx="93.8" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="84.3" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">12</text>
+  </g>
+  <g id="plate-13">
+    <rect x="99" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="108" y1="17.6" x2="108" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="110.2" cy="19.8" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="110.2" cy="24.6" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="27" r="0.25" fill="#000"/>
+    <circle cx="113" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="103.5" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">13</text>
+  </g>
+  <g id="plate-14">
+    <rect x="118.2" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="127.2" y1="17.6" x2="127.2" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="129.4" cy="19.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="129.4" cy="22.2" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="24.6" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="27" r="0.25" fill="#000"/>
+    <circle cx="132.2" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="122.7" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">14</text>
+  </g>
+  <g id="plate-15">
+    <rect x="137.4" y="17.6" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="146.4" y1="17.6" x2="146.4" y2="29.2" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="148.6" cy="19.8" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="22.2" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="24.6" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="27" r="0.25" fill="#000"/>
+    <circle cx="151.4" cy="22.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <text x="141.9" y="24.9" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">15</text>
+  </g>
+  <g id="plate-16">
+    <rect x="3" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="12" y1="32.2" x2="12" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="14.2" cy="34.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="36.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="39.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="17" cy="36.8" r="0.25" fill="#000"/>
+    <text x="7.5" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">16</text>
+  </g>
+  <g id="plate-17">
+    <rect x="22.2" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="31.2" y1="32.2" x2="31.2" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="33.4" cy="34.4" r="0.25" fill="#000"/>
+    <circle cx="33.4" cy="36.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="39.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="36.2" cy="36.8" r="0.25" fill="#000"/>
+    <text x="26.7" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">17</text>
+  </g>
+  <g id="plate-18">
+    <rect x="41.4" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="50.4" y1="32.2" x2="50.4" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="52.6" cy="34.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="36.8" r="0.25" fill="#000"/>
+    <circle cx="52.6" cy="39.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="55.4" cy="36.8" r="0.25" fill="#000"/>
+    <text x="45.9" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">18</text>
+  </g>
+  <g id="plate-19">
+    <rect x="60.6" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="69.6" y1="32.2" x2="69.6" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="71.8" cy="34.4" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="36.8" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="39.2" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="71.8" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="74.6" cy="36.8" r="0.25" fill="#000"/>
+    <text x="65.1" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">19</text>
+  </g>
+  <g id="plate-20">
+    <rect x="79.8" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="88.8" y1="32.2" x2="88.8" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="91" cy="34.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="36.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="39.2" r="0.25" fill="#000"/>
+    <circle cx="91" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="93.8" cy="36.8" r="0.25" fill="#000"/>
+    <text x="84.3" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">20</text>
+  </g>
+  <g id="plate-21">
+    <rect x="99" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="108" y1="32.2" x2="108" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="110.2" cy="34.4" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="36.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="110.2" cy="39.2" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="113" cy="36.8" r="0.25" fill="#000"/>
+    <text x="103.5" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">21</text>
+  </g>
+  <g id="plate-22">
+    <rect x="118.2" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="127.2" y1="32.2" x2="127.2" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="129.4" cy="34.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="129.4" cy="36.8" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="39.2" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="132.2" cy="36.8" r="0.25" fill="#000"/>
+    <text x="122.7" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">22</text>
+  </g>
+  <g id="plate-23">
+    <rect x="137.4" y="32.2" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="146.4" y1="32.2" x2="146.4" y2="43.8" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="148.6" cy="34.4" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="36.8" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="39.2" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="41.6" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="151.4" cy="36.8" r="0.25" fill="#000"/>
+    <text x="141.9" y="39.5" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">23</text>
+  </g>
+  <g id="plate-24">
+    <rect x="3" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="12" y1="46.8" x2="12" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="14.2" cy="49" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="51.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="53.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="14.2" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="17" cy="51.4" r="0.25" fill="#000"/>
+    <text x="7.5" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">24</text>
+  </g>
+  <g id="plate-25">
+    <rect x="22.2" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="31.2" y1="46.8" x2="31.2" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="33.4" cy="49" r="0.25" fill="#000"/>
+    <circle cx="33.4" cy="51.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="53.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="33.4" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="36.2" cy="51.4" r="0.25" fill="#000"/>
+    <text x="26.7" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">25</text>
+  </g>
+  <g id="plate-26">
+    <rect x="41.4" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="50.4" y1="46.8" x2="50.4" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="52.6" cy="49" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="51.4" r="0.25" fill="#000"/>
+    <circle cx="52.6" cy="53.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="52.6" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="55.4" cy="51.4" r="0.25" fill="#000"/>
+    <text x="45.9" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">26</text>
+  </g>
+  <g id="plate-27">
+    <rect x="60.6" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="69.6" y1="46.8" x2="69.6" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="71.8" cy="49" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="51.4" r="0.25" fill="#000"/>
+    <circle cx="71.8" cy="53.8" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="71.8" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="74.6" cy="51.4" r="0.25" fill="#000"/>
+    <text x="65.1" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">27</text>
+  </g>
+  <g id="plate-28">
+    <rect x="79.8" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="88.8" y1="46.8" x2="88.8" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="91" cy="49" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="51.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="91" cy="53.8" r="0.25" fill="#000"/>
+    <circle cx="91" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="93.8" cy="51.4" r="0.25" fill="#000"/>
+    <text x="84.3" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">28</text>
+  </g>
+  <g id="plate-29">
+    <rect x="99" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="108" y1="46.8" x2="108" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="110.2" cy="49" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="51.4" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="110.2" cy="53.8" r="0.25" fill="#000"/>
+    <circle cx="110.2" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="113" cy="51.4" r="0.25" fill="#000"/>
+    <text x="103.5" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">29</text>
+  </g>
+  <g id="plate-30">
+    <rect x="118.2" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="127.2" y1="46.8" x2="127.2" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="129.4" cy="49" r="1" fill="#fff" stroke="#000" stroke-width="0.1"/>
+    <circle cx="129.4" cy="51.4" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="53.8" r="0.25" fill="#000"/>
+    <circle cx="129.4" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="132.2" cy="51.4" r="0.25" fill="#000"/>
+    <text x="122.7" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">30</text>
+  </g>
+  <g id="plate-31">
+    <rect x="137.4" y="46.8" width="16.2" height="11.6" fill="#ddd" stroke="#000" stroke-width="0.1"/>
+    <line x1="146.4" y1="46.8" x2="146.4" y2="58.4" stroke="#000" stroke-width="0.1" stroke-dasharray="0.6 0.6"/>
+    <circle cx="148.6" cy="49" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="51.4" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="53.8" r="0.25" fill="#000"/>
+    <circle cx="148.6" cy="56.2" r="0.25" fill="#000"/>
+    <circle cx="151.4" cy="51.4" r="0.25" fill="#000"/>
+    <text x="141.9" y="54.1" font-family="Arial, sans-serif" font-weight="bold" font-size="4.2" text-anchor="middle">31</text>
+  </g>
+</svg>
