@@ -77,6 +77,8 @@ public sealed class TextNode : Node
     public double FontSize { get; set; } = 12;
     public bool Bold { get; set; }
     public bool Italic { get; set; }
+    public bool Underline { get; set; }
+    public bool Strike { get; set; }
     public HAlign Align { get; set; } = HAlign.Left;
     public VAlign VAlign { get; set; } = VAlign.Middle;
     public double LineHeight { get; set; } = 1.1;

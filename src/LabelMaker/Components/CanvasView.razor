@@ -94,6 +94,11 @@
         if (e.Key == "Escape") Ed.EndEdit();
     }
 
+    static string Decoration(TextNode t) => (t.Underline, t.Strike) switch
+    {
+        (true, true) => "underline line-through", (true, false) => "underline", (false, true) => "line-through", _ => "none",
+    };
+
     // A textarea laid exactly over the text object: same box, font, size and rotation.
     string EditorStyle(TextNode t)
     {
@@ -116,7 +121,7 @@
                 padding:{pad + Math.Max(0, off) * z:0.##}px 0 0 {pad + left * z:0.##}px;
                 writing-mode:vertical-lr;text-orientation:upright;white-space:pre;
                 font-family:'{t.FontFamily}','IBM Plex Sans',sans-serif;font-size:{m[0] * z:0.###}px;line-height:{m[3] * z:0.###}px;
-                font-weight:{(t.Bold ? 700 : 400)};font-style:{(t.Italic ? "italic" : "normal")};letter-spacing:{t.LineHeight - 1:0.###}em;
+                font-weight:{(t.Bold ? 700 : 400)};font-style:{(t.Italic ? "italic" : "normal")};text-decoration:{Decoration(t)};letter-spacing:{t.LineHeight - 1:0.###}em;
                 transform:rotate({t.Rotation:0.##}deg);color:{(t.Invert ? "#fff" : "#000")};background:{(t.Invert ? "#000" : "#fff")};
                 """;
             return FormattableString.Invariant(v).ReplaceLineEndings("");
@@ -125,7 +130,7 @@
             left:{Ed.PanX + t.X * z:0.##}px;top:{Ed.PanY + t.Y * z:0.##}px;{size}
             padding:{pad + Math.Max(0, off) * z:0.##}px {pad:0.##}px 0 {pad:0.##}px;
             font-family:'{t.FontFamily}','IBM Plex Sans',sans-serif;font-size:{m[0] * z:0.###}px;line-height:{m[1] * z:0.###}px;
-            font-weight:{(t.Bold ? 700 : 400)};font-style:{(t.Italic ? "italic" : "normal")};letter-spacing:{t.Tracking / 1000:0.###}em;
+            font-weight:{(t.Bold ? 700 : 400)};font-style:{(t.Italic ? "italic" : "normal")};text-decoration:{Decoration(t)};letter-spacing:{t.Tracking / 1000:0.###}em;
             text-align:{t.Align.ToString().ToLowerInvariant()};white-space:{(t.Mode == TextMode.Wrap ? "pre-wrap" : "pre")};
             transform:rotate({t.Rotation:0.##}deg);color:{(t.Invert ? "#fff" : "#000")};background:{(t.Invert ? "#000" : "#fff")};
             """;

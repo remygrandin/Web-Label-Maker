@@ -266,7 +266,7 @@ public sealed partial class Editor
             if (numbers && mm % 10 == 0)
                 doc.Nodes.Add(new TextNode
                 {
-                    Text = mm.ToString(), FontFamily = "IBM Plex Mono", FontSize = Math.Min(7, usable * 0.36 / 0.3528 / 1.3), Align = HAlign.Center,
+                    Text = mm.ToString(), FontFamily = "IBM Plex Mono", FontSize = Math.Min(7, usable * 0.36 / 0.3528 / 1.3), Align = HAlign.Center, VAlign = VAlign.Top,
                     X = x0 + mm, Y = top + usable * 0.6, W = 0.01, H = 0.01,
                 });
         }

@@ -40,6 +40,10 @@ Select an object to see its settings on the right.
   - *Width* **Auto** makes the box follow the text; **Fixed** keeps the box and either
     breaks lines or scales the text to fit.
   - *Letters* **Stacked** puts upright letters one above the other.
+  - **A− / A+** step the size down or up; the field beside them takes an exact size.
+  - *Style* has bold, italic, underline and strikethrough.
+  - *Align* sets horizontal and vertical alignment. For a box that follows its text,
+    the vertical choice is the edge it grows from.
 - **Images** are converted to black and white at the printer's resolution. Choose the
   dither method and adjust threshold, brightness and contrast.
 - **2D codes** can hold plain text, a URL, Wi-Fi settings, a contact card and more.

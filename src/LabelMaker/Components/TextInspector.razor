@@ -20,13 +20,30 @@
             <BoundField Node="Node" Prop="FontSize" Unit="pt" Min="2" Max="400" Step="0.5" Decimals="1" Disabled="Node.Mode == TextMode.Fit" Title="Font size" />
         </div>
         <div class="seg">
+            <button class="size-step" disabled="@(Node.Mode == TextMode.Fit)" title="Smaller text" @onclick="() => Resize(-1)">A<sub>−</sub></button>
+            <button class="size-step big" disabled="@(Node.Mode == TextMode.Fit)" title="Bigger text" @onclick="() => Resize(1)">A<sup>+</sup></button>
+        </div>
+    </div>
+    <div class="row">
+        <span class="lbl">Style</span>
+        <div class="seg">
             <button class="@(Node.Bold ? "on" : "")" title="Bold" @onclick="() => Ed.Mutate(() => Node.Bold = !Node.Bold)"><Icon Name="bold" /></button>
             <button class="@(Node.Italic ? "on" : "")" title="Italic" @onclick="() => Ed.Mutate(() => Node.Italic = !Node.Italic)"><Icon Name="italic" /></button>
+            <button class="@(Node.Underline ? "on" : "")" title="Underline" @onclick="() => Ed.Mutate(() => Node.Underline = !Node.Underline)"><Icon Name="underline" /></button>
+            <button class="@(Node.Strike ? "on" : "")" title="Strikethrough" @onclick="() => Ed.Mutate(() => Node.Strike = !Node.Strike)"><Icon Name="strike" /></button>
         </div>
+    </div>
+    <div class="row">
+        <span class="lbl">Align</span>
         <div class="seg">
             <button class="@(Node.Align == HAlign.Left ? "on" : "")" title="Align left" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Left)"><Icon Name="text-left" /></button>
             <button class="@(Node.Align == HAlign.Center ? "on" : "")" title="Centre" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Center)"><Icon Name="text-center" /></button>
             <button class="@(Node.Align == HAlign.Right ? "on" : "")" title="Align right" @onclick="() => Ed.Mutate(() => Node.Align = HAlign.Right)"><Icon Name="text-right" /></button>
+        </div>
+        <div class="seg">
+            <button class="@(Node.VAlign == VAlign.Top ? "on" : "")" title="@VTip("Top")" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Top)"><Icon Name="valign-top" /></button>
+            <button class="@(Node.VAlign == VAlign.Middle ? "on" : "")" title="@VTip("Middle")" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Middle)"><Icon Name="valign-mid" /></button>
+            <button class="@(Node.VAlign == VAlign.Bottom ? "on" : "")" title="@VTip("Bottom")" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Bottom)"><Icon Name="valign-bot" /></button>
         </div>
     </div>
     <div class="row">
@@ -52,14 +69,6 @@
                 <button class="@(Node.Mode == TextMode.Fit ? "on" : "")" title="Scale the text so it always fills the box" @onclick="() => SetMode(TextMode.Fit)">Fit size</button>
             </div>
         </div>
-        <div class="row">
-            <span class="lbl">Vertical</span>
-            <div class="seg">
-                <button class="@(Node.VAlign == VAlign.Top ? "on" : "")" title="Top" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Top)"><Icon Name="valign-top" /></button>
-                <button class="@(Node.VAlign == VAlign.Middle ? "on" : "")" title="Middle" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Middle)"><Icon Name="valign-mid" /></button>
-                <button class="@(Node.VAlign == VAlign.Bottom ? "on" : "")" title="Bottom" @onclick="() => Ed.Mutate(() => Node.VAlign = VAlign.Bottom)"><Icon Name="valign-bot" /></button>
-            </div>
-        </div>
     }
     <div class="grid2" style="margin-top:6px">
         <BoundField Node="Node" Prop="LineHeight" Label="LH" Min="0.6" Max="3" Step="0.05" Title="Line height" />
@@ -81,6 +90,25 @@
     [Parameter, EditorRequired] public TextNode Node { get; set; } = default!;
 
     string TextKey => "text:" + Node.Id;
+
+    // In a fixed box this places the text inside it; a box that follows the text grows from that edge instead.
+    string VTip(string where) => Node.Mode == TextMode.Auto
+        ? $"{where}: the box grows from its {(where == "Middle" ? "middle" : where == "Top" ? "top edge" : "bottom edge")} as the text changes"
+        : $"{where} of the box";
+
+    // One step bigger or smaller: finer steps for small text, coarser for large.
+    void Resize(int direction)
+    {
+        double size = Node.FontSize;
+        double from = direction < 0 ? size - 0.01 : size; // going down from 12 uses the small step
+        double step = from < 12 ? 1 : from < 36 ? 2 : 4;
+        double next = Math.Clamp(Math.Round((size + direction * step) * 2) / 2, 2, 400);
+        Ed.Mutate(() =>
+        {
+            Ed.SetBinding(Node, "FontSize", null); // the buttons set a plain size
+            Node.FontSize = next;
+        }, "font-step:" + Node.Id);
+    }
 
     void SetMode(TextMode mode) => Ed.Mutate(() => Node.Mode = mode);
 }

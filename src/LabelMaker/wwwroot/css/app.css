@@ -496,3 +496,8 @@ input, textarea { user-select: text; }
 .about p { margin: 0 0 10px; line-height: 1.5; color: var(--ink-2); }
 .about .lead { color: var(--ink); font-weight: 500; }
 .about a { color: var(--accent); }
+
+/* ---------- text size steps ---------- */
+.seg .size-step { font-weight: 600; font-size: 11px; min-width: 28px; }
+.seg .size-step.big { font-size: 14px; }
+.seg .size-step sub, .seg .size-step sup { font-size: 9px; font-weight: 500; line-height: 0; }

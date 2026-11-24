@@ -213,7 +213,7 @@ public sealed partial class Editor
         AutoFlag(doc);
         if (LayoutWidth(doc) is { } fixedWidth) doc.WidthMm = Math.Max(5, Math.Round(fixedWidth, 1));
         else if (doc.AutoWidth && Geo.Bounds(doc.Nodes.Where(n => n.Visible)) is { } b)
-            doc.WidthMm = Math.Max(8, Math.Round(b.R + doc.Margins.R, 1));
+            doc.WidthMm = Math.Max(5, Math.Round(b.R + doc.Margins.R, 1));
     }
 
     void Remeasure(TextNode t)
@@ -222,9 +222,10 @@ public sealed partial class Editor
         double nw = Math.Max(m[0], 0.5) + 2 * t.Padding, nh = Math.Max(m[1], 0.5) + 2 * t.Padding;
         double dw = nw - t.W, dh = nh - t.H;
         if (Math.Abs(dw) < 1e-4 && Math.Abs(dh) < 1e-4) return;
-        // grow away from the anchored edge so aligned text stays put
+        // grow away from the anchored edge so aligned text stays put, across and down
         double lx = t.Align switch { HAlign.Left => dw / 2, HAlign.Right => -dw / 2, _ => 0 };
-        var (sx, sy) = Geo.Rot(lx, dh / 2, t.Rotation);
+        double ly = t.VAlign switch { VAlign.Top => dh / 2, VAlign.Bottom => -dh / 2, _ => 0 };
+        var (sx, sy) = Geo.Rot(lx, ly, t.Rotation);
         double cx = t.Cx + sx, cy = t.Cy + sy;
         t.W = nw; t.H = nh; t.X = cx - nw / 2; t.Y = cy - nh / 2;
     }

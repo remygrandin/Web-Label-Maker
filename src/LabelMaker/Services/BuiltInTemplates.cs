@@ -23,6 +23,8 @@ public static class BuiltInTemplates
         TextMode mode = TextMode.Auto, HAlign align = HAlign.Left) => new()
     {
         Text = text, X = x, Y = y, W = w, H = h, FontFamily = font, FontSize = pt, Bold = bold, Mode = mode, Align = align,
+        // the positions below give the top edge of text that sizes itself
+        VAlign = mode == TextMode.Auto ? VAlign.Top : VAlign.Middle,
     };
 
     static BarcodeNode Code(CodeFormat f, string value, double x, double y, double w, double h, bool showText = false) => new()

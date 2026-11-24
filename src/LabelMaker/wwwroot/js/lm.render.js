@@ -124,15 +124,27 @@
         ctx.fillStyle = n.invert ? '#fff' : '#000';
         ctx.textBaseline = 'alphabetic';
         const base = (L.lh - (L.asc + L.desc)) / 2 + L.asc;
+        // underline and strikethrough: bars at the usual places relative to the baseline, in font units
+        const thick = REF * (n.bold ? 0.08 : 0.06);
+        const rule = (x, baseline, w) => {
+            if (n.underline) ctx.fillRect(x, baseline + REF * 0.1, w, thick);
+            if (n.strike) ctx.fillRect(x, baseline - REF * 0.3, w, thick);
+        };
         if (L.stacked) {
             const bw = L.w * k, bx = n.align === 'Center' ? -bw / 2 : n.align === 'Right' ? iw / 2 - bw : -iw / 2;
             ctx.letterSpacing = '0px'; ctx.textAlign = 'center';
-            L.cols.forEach((col, c) => col.forEach((ch, r) => ctx.fillText(ch, bx / k + (c + 0.5) * L.colPitch, y0 / k + r * L.lh + base)));
+            L.cols.forEach((col, c) => col.forEach((ch, r) => {
+                const cx = bx / k + (c + 0.5) * L.colPitch, by = y0 / k + r * L.lh + base;
+                ctx.fillText(ch, cx, by);
+                if (ch.trim()) { const cw = ctx.measureText(ch).width; rule(cx - cw / 2, by, cw); }
+            }));
         }
         L.lines.forEach((ln, i) => {
             const lw = ln.w * k;
             const x = n.align === 'Center' ? -lw / 2 : n.align === 'Right' ? iw / 2 - lw : -iw / 2;
-            ctx.fillText(ln.t, x / k, y0 / k + i * L.lh + base);
+            const by = y0 / k + i * L.lh + base;
+            ctx.fillText(ln.t, x / k, by);
+            if (ln.w) rule(x / k, by, ln.w);
         });
         ctx.restore();
     }
