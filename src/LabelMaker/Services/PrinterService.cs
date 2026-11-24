@@ -296,6 +296,7 @@ public sealed class PrinterService
     {
         if (Busy || Geometry is not { } g) return;
         Busy = true;
+        bool sending = false;
         Changed?.Invoke();
         try
         {
@@ -348,7 +349,9 @@ public sealed class PrinterService
 
             var job = Brother.BuildJob(Model, Media, g, Options, pages);
             Say($"Sending {job.Length:N0} bytes ({pages.Count} page{(pages.Count > 1 ? "s" : "")}, {pages.Sum(p => p.Lines)} raster lines).");
+            sending = true;
             await _js.InvokeVoidAsync("LM.serial.write", job);
+            sending = false;
 
             // The printer announces phase changes, then "printing completed" per page.
             int done = 0;
@@ -378,6 +381,10 @@ public sealed class PrinterService
         }
         catch (Exception ex)
         {
+            // A job cut off part-way leaves the printer waiting for the rest: clear it now rather
+            // than at the next status check. Best effort, since the link may be what failed.
+            if (sending)
+                try { await _js.InvokeVoidAsync("LM.serial.write", Brother.Preamble(Model)[..^3]); } catch (JSException) { }
             Say(ex.Message.Contains("BUSY") ? "Not printing: the printer is in use by another tab." : $"Print failed: {FirstLine(ex.Message)}");
         }
         finally
