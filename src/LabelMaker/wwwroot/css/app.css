@@ -483,9 +483,9 @@ input, textarea { user-select: text; }
 /* ---------- printer status in the top bar ---------- */
 .pchip { font: 11px var(--mono); gap: 7px; max-width: 240px; white-space: nowrap; }
 .pchip .led { width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); flex: none; }
-.pchip.on .led { background: #2e9d4e; }
-.pchip.warn { border-color: var(--danger); color: var(--danger); }
-.pchip.warn .led { background: var(--danger); }
+.pchip.is-on .led { background: #2e9d4e; }
+.pchip.is-warn { border-color: var(--danger); color: var(--danger); }
+.pchip.is-warn .led { background: var(--danger); }
 .pmenu { width: 300px; padding: 4px 12px 12px; cursor: default; }
 .pmenu .menu-head { padding: 6px 0 8px; }
 .topbar .menu-wrap { display: flex; align-items: center; }

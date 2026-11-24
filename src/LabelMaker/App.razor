@@ -10,6 +10,7 @@
             <PrinterChip />
             <button class="btn" title="Saved labels and templates" @onclick="() => Shell.Open(Dialog.Library)"><Icon Name="folder" />Library</button>
             <button class="btn primary" title="Preview and print" @onclick="() => Shell.Open(Dialog.Print)"><Icon Name="printer" />Print</button>
+            <a class="ibtn" title="Help: open the documentation in a new tab" href="https://github.com/remygrandin/Web-Label-Maker/wiki" target="_blank" rel="noopener"><Icon Name="help" /></a>
             <button class="ibtn" title="About WebLabelMaker" @onclick="() => Shell.Open(Dialog.About)"><Icon Name="info" /></button>
         </Actions>
     </TopBar>

@@ -82,8 +82,8 @@
     bool ColoursDiffer => S is { HasColors: true } s && s.TapeColor.Id is { } tape && s.TextColor.Id is { } ink
         && (tape != Ed.Doc.TapeColor || ink != Ed.Doc.InkColor);
 
-    string State => !Printer.Supported || !Printer.Connected ? "off"
-        : S is { Errors.Count: > 0 } || Printer.TapeMismatch ? "warn" : "on";
+    string State => !Printer.Supported || !Printer.Connected ? "is-off"
+        : S is { Errors.Count: > 0 } || Printer.TapeMismatch ? "is-warn" : "is-on";
 
     string Label => !Printer.Supported ? "No printer support"
         : Printer.Connecting ? "Connecting…"

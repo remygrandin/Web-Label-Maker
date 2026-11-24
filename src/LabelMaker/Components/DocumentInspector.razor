@@ -30,11 +30,14 @@
         <button class="btn sm" disabled="@(!Printer.Connected || Printer.Busy)"
                 title="@(Printer.Connected ? "Set the tape width and colours of this label to the cassette in the printer" : "Connect the printer (top right) to read what tape is loaded")"
                 @onclick="Printer.MatchLabel"><Icon Name="printer" />Match the printer</button>
-        @if (Printer.LoadedMedia is { } loaded)
-        {
-            <span class="hint" style="margin:0">@loaded.Label@(Printer.Status is { HasColors: true } ps ? $", {ps.TextColor.Name} on {ps.TapeColor.Name.ToLowerInvariant()}" : "") loaded</span>
-        }
     </div>
+    @if (Printer.LoadedMedia is { } loaded)
+    {
+        <div class="row" style="margin-top:2px">
+            <span class="lbl"></span>
+            <span class="hint" style="margin:0">Loaded: @loaded.Label@(Printer.Status is { HasColors: true } ps ? $", {ps.TextColor.Name} on {ps.TapeColor.Name.ToLowerInvariant()}" : "")</span>
+        </div>
+    }
     <div class="row">
         <span class="lbl"></span>
         <label class="check" title="Prints the area inside the margins solid and leaves the content blank: white on black with standard tape">
