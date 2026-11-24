@@ -6,7 +6,7 @@
 @* Printer state in the top bar: connect, see what tape is loaded, and get warned when it does not match the label. *@
 <div class="menu-wrap">
     <button class="btn pchip @State" title="@Tip" @onclick="Toggle">
-        <i class="led"></i>@Label
+        <i class="led"></i><span>@Label</span>
     </button>
     @if (_open)
     {

@@ -204,6 +204,27 @@ public sealed class PrinterService
         return null;
     }
 
+    /// <summary>The cassette in the printer, as a tape the label can use; null when unknown.</summary>
+    public MediaInfo? LoadedMedia => Status is { MediaWidthCode: not 0 } s ? Models.Media.All.FirstOrDefault(m => m.WidthCode == s.MediaWidthCode) : null;
+
+    /// <summary>Set the label to what is loaded: tape width, and tape and print colour when the printer reports them.</summary>
+    public async Task MatchLabel()
+    {
+        if (Connected) await Query(quiet: true);
+        if (Status is not { } s || LoadedMedia is not { } loaded)
+        {
+            _shell.Toast(Connected ? "The printer reports no tape cassette." : "Connect the printer first (top right).");
+            return;
+        }
+        if (loaded.Id != _ed.Doc.MediaId && !await _ed.ChangeTape(loaded.Id)) return;
+        bool colours = s.HasColors && s.TapeColor.Id is not null && s.TextColor.Id is not null;
+        if (colours && (s.TapeColor.Id != _ed.Doc.TapeColor || s.TextColor.Id != _ed.Doc.InkColor))
+            _ed.Mutate(() => { _ed.Doc.TapeColor = s.TapeColor.Id!; _ed.Doc.InkColor = s.TextColor.Id!; });
+        _shell.Toast(colours
+            ? $"Label set to {loaded.Label} tape, {s.TextColor.Name} on {s.TapeColor.Name.ToLowerInvariant()}."
+            : $"Label set to {loaded.Label} tape. The printer did not report a colour it knows.");
+    }
+
     /// <summary>Say once, per cassette and label width, that they do not match.</summary>
     public void WarnMismatch()
     {
