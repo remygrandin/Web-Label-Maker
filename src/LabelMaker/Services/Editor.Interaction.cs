@@ -426,6 +426,27 @@ public sealed partial class Editor
         {
             double s = _hx != 0 && _hy != 0 ? Math.Max(w / f.W, h / f.H) : _hx != 0 ? w / f.W : h / f.H;
             w = f.W * s; h = f.H * s;
+            if (snap && f.Rot == 0)
+            {
+                // proportions are kept, so only one edge can land on a line: take whichever is nearest
+                var (xs, ys) = SnapLines();
+                double tol = 6 / Zoom, fixedX = f.Cx + ax, fixedY = f.Cy + ay;
+                double? near = null, scale = null;
+                GuideLine? guide = null;
+                if (_hx != 0 && SnapDelta([fixedX + _hx * w], xs, tol, out var lx) is { } ddx)
+                {
+                    near = Math.Abs(ddx); scale = (lx - fixedX) * _hx / f.W; guide = new GuideLine(true, lx);
+                }
+                if (_hy != 0 && SnapDelta([fixedY + _hy * h], ys, tol, out var ly) is { } ddy && (near is null || Math.Abs(ddy) < near))
+                {
+                    scale = (ly - fixedY) * _hy / f.H; guide = new GuideLine(false, ly);
+                }
+                if (scale is { } k && guide is not null && k * f.W >= min && k * f.H >= min)
+                {
+                    w = f.W * k; h = f.H * k;
+                    _guides.Add(guide);
+                }
+            }
         }
         var (ox, oy) = Geo.Rot(ax + _hx * w / 2, ay + _hy * h / 2, f.Rot);
         return new Frame(f.Cx + ox, f.Cy + oy, w, h, f.Rot);
