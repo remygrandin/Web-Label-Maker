@@ -11,8 +11,8 @@
     </span>
     <span class="grow"></span>
 
-    <span class="cell" title="Snapping pulls moved and resized edges onto nearby lines. Hold Ctrl to bypass.">
-        <Icon Name="magnet" />
+    <span class="cell snap-label" title="Snapping pulls moved and resized edges onto nearby lines. Hold Ctrl to bypass.">
+        <Icon Name="magnet" />Snap to
     </span>
     <button class="sbtn @(S.SnapObjects ? "on" : "")" title="Snap to other objects' edges and centres" @onclick="() => Toggle(() => S.SnapObjects = !S.SnapObjects)">
         <i class="led"></i>Objects
