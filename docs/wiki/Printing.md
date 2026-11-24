@@ -27,6 +27,9 @@ Once connected it shows the model and the loaded tape, for example `PT-E560BT ·
   them to the preview.
 - The app asks the printer what is loaded every 20 seconds, so swapping the cassette
   shows up on its own.
+- The port is only opened for a status check or a print and closed straight after, so
+  several tabs can share one printer. Only the tab you are looking at checks the status;
+  if two tabs want the printer at once, one waits for the other.
 
 **Match the printer**, in the label settings, sets the label's width and colours to the
 loaded cassette in one click.

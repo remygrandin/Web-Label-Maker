@@ -53,23 +53,24 @@ public sealed class PrinterService
     /// <summary>The loaded cassette is a different width from the label on screen.</summary>
     public bool TapeMismatch => Status is { } s && s.MediaWidthCode != 0 && s.MediaWidthCode != Media.WidthCode;
 
+    /// <summary>A port has been chosen. It is only opened while talking to the printer, so other tabs can use it too.</summary>
+    public bool Linked { get; private set; }
+
     /// <summary>
-    /// Called once at start-up, and again whenever a printer view opens: reopens the port used
+    /// Called once at start-up, and again whenever a printer view opens: takes up the port used
     /// last time (no prompt needed) unless the user disconnected on purpose.
     /// </summary>
     public async Task Init()
     {
         Supported = await _js.InvokeAsync<bool>("LM.serial.supported");
         if (!Supported) { Changed?.Invoke(); return; }
-        bool first = !_started;
         _started = true;
-        Connected = await _js.InvokeAsync<bool>("LM.serial.connected");
-        if (Connected) { if (!first) await Query(); }
+        if (Linked) await Query();
         else if (_shell.Settings.AutoConnect) await Reconnect();
         Changed?.Invoke();
     }
 
-    /// <summary>Reopen the last port without a prompt. Stays quiet when the printer is off or out of range.</summary>
+    /// <summary>Take up the last port without a prompt and ask the printer what is loaded.</summary>
     public async Task<bool> Reconnect()
     {
         if (Busy || Connecting) return Connected;
@@ -79,19 +80,13 @@ public sealed class PrinterService
         {
             if (await _js.InvokeAsync<string?>("LM.serial.reconnect") is { } info)
             {
-                Connected = true;
+                Linked = true;
                 PortInfo = info;
-                if (await Query() is null)
-                {
-                    // the port opens even when the printer is switched off: do not call that connected
-                    await _js.InvokeVoidAsync("LM.serial.close");
-                    Connected = false;
-                    Say("The printer did not answer; it may be off or out of range.");
-                }
-                else { Say($"Reconnected to {info}."); Watch(); }
+                if (await Query() is null) Say("The printer did not answer; it may be off or out of range.");
+                Watch();
             }
         }
-        catch (JSException ex) { Connected = false; Say($"Could not reopen the port: {FirstLine(ex.Message)}"); }
+        catch (JSException ex) { Connected = false; Say($"Could not reach the port: {FirstLine(ex.Message)}"); }
         finally { Connecting = false; Changed?.Invoke(); }
         return Connected;
     }
@@ -104,17 +99,16 @@ public sealed class PrinterService
         try
         {
             PortInfo = await _js.InvokeAsync<string>("LM.serial.connect");
-            Connected = true;
+            Linked = true;
             _shell.Settings.AutoConnect = true;
             _shell.SaveSettings();
-            Say($"Connected to {PortInfo}.");
+            Say($"Using {PortInfo}.");
             await Query();
             Watch();
         }
         catch (JSException ex)
         {
-            Connected = false;
-            if (!ex.Message.Contains("No port selected")) Say($"Could not open the port: {FirstLine(ex.Message)}");
+            if (!ex.Message.Contains("No port selected")) Say($"Could not use the port: {FirstLine(ex.Message)}");
         }
         Changed?.Invoke();
     }
@@ -123,6 +117,7 @@ public sealed class PrinterService
     {
         _watch?.Cancel();
         await _js.InvokeVoidAsync("LM.serial.close");
+        Linked = false;
         Connected = false;
         Status = null;
         // a deliberate disconnect is remembered: no automatic reconnect next time
@@ -131,26 +126,21 @@ public sealed class PrinterService
         Say("Disconnected.");
     }
 
-    /// <summary>While connected, ask the printer now and then what is loaded, so a cassette swap shows up.</summary>
+    /// <summary>
+    /// While a port is chosen, ask the printer now and then what is loaded, so a cassette swap or
+    /// the printer being switched on or off shows up. Only the tab being looked at does this.
+    /// </summary>
     async void Watch()
     {
         _watch?.Cancel();
         var cts = _watch = new CancellationTokenSource();
         try
         {
-            while (!cts.IsCancellationRequested)
+            while (!cts.IsCancellationRequested && Linked)
             {
                 await Task.Delay(20000, cts.Token);
-                if (!Connected) return;
-                if (Busy) continue;
-                if (await Query(quiet: true) is null && !Busy)
-                {
-                    await _js.InvokeVoidAsync("LM.serial.close");
-                    Connected = false;
-                    Status = null;
-                    Say("Lost contact with the printer.");
-                    return;
-                }
+                if (Busy || Connecting || !await _js.InvokeAsync<bool>("LM.serial.visible")) continue;
+                await Query(quiet: true);
             }
         }
         catch (TaskCanceledException) { }
@@ -159,12 +149,38 @@ public sealed class PrinterService
 
     static string FirstLine(string s) => s.Split('\n')[0];
 
-    /// <summary>Reset the printer and ask what is loaded. Returns null when it does not answer.</summary>
+    /// <summary>
+    /// Open the port, reset the printer and ask what is loaded, then close the port again.
+    /// Returns null when the printer does not answer. <see cref="Connected"/> follows the outcome,
+    /// except when another tab is using the printer: then nothing changes.
+    /// </summary>
     public async Task<PrinterStatus?> Query(bool quiet = false)
     {
         await _io.WaitAsync();
-        try { return await QueryCore(quiet); }
-        finally { _io.Release(); }
+        bool was = Connected;
+        try
+        {
+            try { await _js.InvokeVoidAsync("LM.serial.begin"); }
+            catch (JSException ex)
+            {
+                if (ex.Message.Contains("BUSY")) { if (!quiet) Say("The printer is in use by another tab; try again in a moment."); return Status; }
+                Connected = false; Status = null;
+                if (!quiet || was) Say($"Could not open the port: {FirstLine(ex.Message)}");
+                Changed?.Invoke();
+                return null;
+            }
+            var status = await QueryCore(quiet);
+            Connected = status is not null;
+            if (was && !Connected) Say("Lost contact with the printer.");
+            else if (!was && Connected && quiet) Say("The printer is back.");
+            return status;
+        }
+        finally
+        {
+            try { await _js.InvokeVoidAsync("LM.serial.end"); } catch (JSException) { }
+            _io.Release();
+            Changed?.Invoke();
+        }
     }
 
     async Task<PrinterStatus?> QueryCore(bool quiet = false)
@@ -197,7 +213,6 @@ public sealed class PrinterService
         catch (JSException ex)
         {
             Status = null;
-            Connected = await _js.InvokeAsync<bool>("LM.serial.connected");
             if (!quiet) Say($"Status request failed: {FirstLine(ex.Message)}");
         }
         Changed?.Invoke();
@@ -279,7 +294,9 @@ public sealed class PrinterService
         try
         {
             await _io.WaitAsync();
+            await _js.InvokeVoidAsync("LM.serial.begin");
             var status = await QueryCore();
+            Connected = status is not null;
             if (status is not null)
             {
                 if (status.Errors.Count > 0) { Say("Not printing: clear the printer error first."); return; }
@@ -355,11 +372,11 @@ public sealed class PrinterService
         }
         catch (Exception ex)
         {
-            Connected = await _js.InvokeAsync<bool>("LM.serial.connected");
-            Say($"Print failed: {FirstLine(ex.Message)}");
+            Say(ex.Message.Contains("BUSY") ? "Not printing: the printer is in use by another tab." : $"Print failed: {FirstLine(ex.Message)}");
         }
         finally
         {
+            try { await _js.InvokeVoidAsync("LM.serial.end"); } catch (JSException) { }
             _io.Release();
             Busy = false;
             Changed?.Invoke();
