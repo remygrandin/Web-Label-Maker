@@ -145,25 +145,88 @@
     const ICONIFY = 'https://api.iconify.design';
 
     // -> { icons: ["set:name", …], total } or { error }
-    LM.iconSearch = async (query, mono) => {
-        try {
-            const q = String(query || '').trim() + (mono ? ' palette=false' : '');
-            const res = await fetch(`${ICONIFY}/search?query=${encodeURIComponent(q)}&limit=120`);
-            if (!res.ok) return { icons: [], total: 0, error: `The icon service answered ${res.status}.` };
-            const data = await res.json();
-            return { icons: data.icons || [], total: data.total || 0, error: null };
-        } catch {
-            return { icons: [], total: 0, error: 'Could not reach the icon service. Check your connection.' };
+    //
+    // The service limits request rates, so a search costs one request for the names plus
+    // one per icon set for the drawings (never one per icon), everything is cached, and
+    // a search that has been overtaken by newer typing is dropped.
+    const iconCache = new Map();    // "set:name" -> { id, dataUrl, w, h } | null
+    const searchCache = new Map();  // query -> { ids, total }
+    let searchSeq = 0;
+
+    const rateLimited = (res) => res.status === 429
+        ? 'The icon service is limiting requests. Wait a few seconds, then search again.'
+        : `The icon service answered ${res.status}.`;
+
+    // Build a standalone black SVG from Iconify icon data.
+    function iconSvg(set, name) {
+        let icon = set.icons?.[name], flipH = false, flipV = false, turns = 0;
+        for (let alias = set.aliases?.[name], hops = 0; !icon && alias && hops < 5; hops++) {
+            flipH ^= !!alias.hFlip; flipV ^= !!alias.vFlip; turns += alias.rotate || 0;
+            icon = set.icons?.[alias.parent];
+            alias = set.aliases?.[alias.parent];
         }
-    };
+        if (!icon) return null;
+        const left = icon.left ?? set.left ?? 0, top = icon.top ?? set.top ?? 0;
+        const w = icon.width ?? set.width ?? 16, h = icon.height ?? set.height ?? 16;
+        const ops = [];
+        if (turns % 4) ops.push(`rotate(${(turns % 4) * 90} ${left + w / 2} ${top + h / 2})`);
+        if (flipH) ops.push(`translate(${w + 2 * left} 0) scale(-1 1)`);
+        if (flipV) ops.push(`translate(0 ${h + 2 * top}) scale(1 -1)`);
+        const body = String(icon.body).replace(/currentColor/g, '#000');
+        const k = 256 / h;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${Math.round(w * k)}" height="256" viewBox="${left} ${top} ${w} ${h}">`
+            + (ops.length ? `<g transform="${ops.join(' ')}">${body}</g>` : body) + '</svg>';
+        return { dataUrl: svgDataUrl(svg), w: Math.round(w * k), h: 256 };
+    }
 
-    LM.iconUrl = (id, height) => { const [set, name] = String(id).split(':'); return `${ICONIFY}/${set}/${name}.svg?height=${height || 32}&color=%23000`; };
+    // Download the drawings for these ids: one request per icon set, a few at a time.
+    async function loadIcons(ids, alive) {
+        const bySet = new Map();
+        for (const id of ids) {
+            if (iconCache.has(id)) continue;
+            const [set, name] = id.split(':');
+            if (!bySet.has(set)) bySet.set(set, []);
+            bySet.get(set).push(name);
+        }
+        const queue = [...bySet.entries()];
+        let error = null;
+        const worker = async () => {
+            while (queue.length && !error && alive()) {
+                const [set, names] = queue.shift();
+                const res = await fetch(`${ICONIFY}/${set}.json?icons=${names.map(encodeURIComponent).join(',')}`);
+                if (!res.ok) { error = rateLimited(res); return; }
+                const data = await res.json();
+                for (const name of names) {
+                    const svg = iconSvg(data, name);
+                    iconCache.set(`${set}:${name}`, svg ? { id: `${set}:${name}`, ...svg } : null);
+                }
+            }
+        };
+        await Promise.all([worker(), worker(), worker()]);
+        return error;
+    }
 
-    LM.iconFetch = async (id) => {
+    // -> { icons: [{ id, dataUrl, w, h }], total, error, stale }
+    LM.iconSearch = async (query, mono) => {
+        const seq = ++searchSeq, alive = () => seq === searchSeq;
+        const none = (error, stale) => ({ icons: [], total: 0, error: error || null, stale: !!stale });
         try {
-            const res = await fetch(LM.iconUrl(id, 256));
-            if (!res.ok) return null;
-            return await readSvg(await res.text(), String(id));
-        } catch { return null; }
+            const q = String(query || '').trim().toLowerCase() + (mono ? ' palette=false' : '');
+            let found = searchCache.get(q);
+            if (!found) {
+                const res = await fetch(`${ICONIFY}/search?query=${encodeURIComponent(q)}&limit=64`);
+                if (!res.ok) return none(rateLimited(res));
+                const data = await res.json();
+                found = { ids: data.icons || [], total: data.total || 0 };
+                searchCache.set(q, found);
+            }
+            if (!alive()) return none(null, true);
+            const error = await loadIcons(found.ids, alive);
+            if (!alive()) return none(null, true);
+            const icons = found.ids.map(id => iconCache.get(id)).filter(Boolean);
+            return { icons, total: found.total, error: icons.length ? null : error, stale: false };
+        } catch {
+            return alive() ? none('Could not reach the icon service. Check your connection.') : none(null, true);
+        }
     };
 })();

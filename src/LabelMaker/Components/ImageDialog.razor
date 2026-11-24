@@ -23,10 +23,10 @@
         {
             <div class="icon-search">
                 <input id="icon-query" class="inp" spellcheck="false" placeholder="Search icons: warning, wifi, arrow, ethernet…" value="@_query"
-                       @oninput="e => _query = e.Value?.ToString() ?? string.Empty" @onkeydown="OnQueryKey" />
-                <button class="btn" disabled="@(_busy || _query.Trim().Length < 2)" @onclick="Search">Search</button>
+                       @oninput="OnQuery" />
+                <span class="hint" style="margin:0;min-width:64px">@(_busy ? "Searching…" : "")</span>
                 <label class="check" title="Leave out multi-colour sets such as emoji and logos, which can only print as a dither">
-                    <input type="checkbox" checked="@Shell.Settings.IconsMono" @onchange="e => { Shell.Settings.IconsMono = (bool)e.Value!; Shell.SaveSettings(); }" /><i></i>
+                    <input type="checkbox" checked="@Shell.Settings.IconsMono" @onchange="SetMono" /><i></i>
                     One colour only
                 </label>
             </div>
@@ -62,23 +62,22 @@
             else
             {
                 @if (_error is not null) { <div class="warn" style="margin:0 0 10px">@_error</div> }
-                @if (_busy) { <div class="empty">Searching…</div> }
-                else if (_results is null)
+                @if (_results is null)
                 {
                     <div class="empty">
-                        Search the open-source icon sets collected by Iconify (Material, Tabler, Lucide, Phosphor and many more).
+                        Start typing to search the open-source icon sets collected by Iconify (Material, Tabler, Lucide, Phosphor and many more).
                         An icon is placed as a vector, so it prints sharp at any size.
                     </div>
                 }
                 else if (_results.Count == 0) { <div class="empty">No icon matches “@_searched”.</div> }
                 else
                 {
-                    <div class="icon-grid">
-                        @foreach (var id in _results)
+                    <div class="icon-grid" style="@(_busy ? "opacity:.5" : "")">
+                        @foreach (var item in _results)
                         {
-                            var icon = id;
-                            <button title="@icon" disabled="@(_loading is not null)" class="@(_loading == icon ? "on" : "")" @onclick="() => PlaceIcon(icon)">
-                                <img loading="lazy" src="@Thumb(icon)" alt="@icon" />
+                            var icon = item;
+                            <button title="@icon.Id" @onclick="() => PlaceIcon(icon)">
+                                <img src="@icon.DataUrl" alt="@icon.Id" />
                             </button>
                         }
                     </div>
@@ -108,20 +107,31 @@
 </div>
 
 @code {
+    sealed class IconItem
+    {
+        public string Id { get; set; } = "";
+        public string DataUrl { get; set; } = "";
+        public double W { get; set; }
+        public double H { get; set; }
+    }
+
     sealed class IconResult
     {
-        public List<string> Icons { get; set; } = new();
+        public List<IconItem> Icons { get; set; } = new();
         public int Total { get; set; }
         public string? Error { get; set; }
+        /// <summary>Newer typing overtook this search; ignore it.</summary>
+        public bool Stale { get; set; }
     }
 
     // the last search survives closing the dialog
     static string _query = "", _searched = "";
-    static List<string>? _results;
+    static List<IconItem>? _results;
     static int _total;
 
     bool _icons, _busy;
-    string? _error, _loading;
+    string? _error;
+    CancellationTokenSource? _typing;
     List<StoredImage> _images = new();
 
     protected override async Task OnInitializedAsync()
@@ -156,32 +166,46 @@
         Ed.SetImageTool(dataUrl, w, h);
     }
 
-    Task OnQueryKey(KeyboardEventArgs e) => e.Key == "Enter" && !_busy && _query.Trim().Length >= 2 ? Search() : Task.CompletedTask;
-
-    async Task Search()
+    Task OnQuery(ChangeEventArgs e)
     {
+        _query = e.Value?.ToString() ?? string.Empty;
+        return SearchSoon();
+    }
+
+    Task SetMono(ChangeEventArgs e)
+    {
+        Shell.Settings.IconsMono = (bool)e.Value!;
+        Shell.SaveSettings();
+        return SearchSoon(0);
+    }
+
+    // Wait for a pause in the typing, so each word costs one search rather than one per letter.
+    async Task SearchSoon(int delay = 450)
+    {
+        _typing?.Cancel();
+        var cts = _typing = new CancellationTokenSource();
+        string q = _query.Trim();
+        if (q.Length < 2) { _busy = false; return; }
+        try { await Task.Delay(delay, cts.Token); } catch (TaskCanceledException) { return; }
+
         _busy = true; _error = null;
         StateHasChanged();
-        var r = await JS.InvokeAsync<IconResult>("LM.iconSearch", _query, Shell.Settings.IconsMono);
+        var r = await JS.InvokeAsync<IconResult>("LM.iconSearch", q, Shell.Settings.IconsMono);
+        if (r.Stale || cts.IsCancellationRequested) return;
         _busy = false;
         _error = r.Error;
-        _searched = _query.Trim();
-        _results = r.Error is null ? r.Icons : null;
-        _total = r.Total;
+        if (r.Error is null) { _searched = q; _results = r.Icons; _total = r.Total; }
     }
 
-    string Thumb(string id) => ((IJSInProcessRuntime)JS).Invoke<string>("LM.iconUrl", id, 40);
-
-    async Task PlaceIcon(string id)
+    async Task PlaceIcon(IconItem icon)
     {
-        _loading = id;
-        StateHasChanged();
-        var img = await JS.InvokeAsync<PickedImage?>("LM.iconFetch", id);
-        _loading = null;
-        if (img is null) { _error = $"Could not download {id}."; return; }
-        if (Shell.Settings.KeepIcons) await Lib.AddImage(id.Replace(':', ' '), img.DataUrl, img.W, img.H);
-        Place(img.DataUrl, img.W, img.H);
+        if (Shell.Settings.KeepIcons) await Lib.AddImage(icon.Id.Replace(':', ' '), icon.DataUrl, icon.W, icon.H);
+        Place(icon.DataUrl, icon.W, icon.H);
     }
 
-    public void Dispose() => Lib.ImagesChanged -= Reload;
+    public void Dispose()
+    {
+        _typing?.Cancel();
+        Lib.ImagesChanged -= Reload;
+    }
 }
