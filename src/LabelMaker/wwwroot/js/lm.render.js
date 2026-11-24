@@ -196,10 +196,60 @@
         }
     }
 
-    function drawShape(ctx, n) {
+    // ---- printer-dot snapping -----------------------------------------------------
+    // Straight lines and boxes that sit square on the label are drawn as whole printer
+    // dots: a 0.2 mm line is always the same number of dots wide wherever it falls,
+    // instead of a grey edge that the 1-bit threshold may keep or drop.
+    // Returns null for turned objects, which keep the smooth path.
+    function dotGrid(ctx, base, s, dpi) {
+        const m = ctx.getTransform();
+        const square = (Math.abs(m.b) < 1e-6 && Math.abs(m.c) < 1e-6) || (Math.abs(m.a) < 1e-6 && Math.abs(m.d) < 1e-6);
+        if (!square || !dpi) return null;
+        const dot = 25.4 / dpi, pd = Math.hypot(base.a, base.b) * s * dot;   // device px per printer dot
+        const toDots = (x, y) => [(m.a * x + m.c * y + m.e - base.e) / pd, (m.b * x + m.d * y + m.f - base.f) / pd];
+        const span = (u, v) => { const len = Math.max(1, Math.round(Math.abs(v - u))), a = Math.round((u + v) / 2 - len / 2); return [a, a + len]; };
+        const g = {
+            count: (mm) => Math.max(1, Math.round(mm / dot)),
+            // a box in the object's own mm → [x0, y0, x1, y1] in whole dots on the label
+            box(x0, y0, x1, y1) {
+                const p = toDots(x0, y0), q = toDots(x1, y1);
+                const [ax, bx] = span(p[0], q[0]), [ay, by] = span(p[1], q[1]);
+                return [ax, ay, bx, by];
+            },
+            fill(b, color) {
+                const x0 = Math.round(base.e + b[0] * pd), y0 = Math.round(base.f + b[1] * pd);
+                const x1 = Math.round(base.e + b[2] * pd), y1 = Math.round(base.f + b[3] * pd);
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.fillStyle = color;
+                ctx.fillRect(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
+                ctx.restore();
+            },
+            // an outline t dots thick, kept inside the box
+            frame(b, t, color) {
+                t = Math.max(1, Math.min(t, Math.ceil((b[2] - b[0]) / 2), Math.ceil((b[3] - b[1]) / 2)));
+                g.fill([b[0], b[1], b[2], b[1] + t], color); g.fill([b[0], b[3] - t, b[2], b[3]], color);
+                g.fill([b[0], b[1], b[0] + t, b[3]], color); g.fill([b[2] - t, b[1], b[2], b[3]], color);
+            },
+        };
+        return g;
+    }
+
+    function drawShape(ctx, n, g) {
         const sw = Math.max(0, n.strokeWidth || 0);
         const stroke = sw > 0 ? ink(n.stroke) : null;
         const dash = n.dash === 'Dashed' ? [sw * 3, sw * 2] : n.dash === 'Dotted' ? [0.001, sw * 2] : [];
+        const solid = n.dash !== 'Dashed' && n.dash !== 'Dotted';
+        if (g && n.kind === 'Line' && solid) {
+            if (stroke) g.fill(g.box(-n.w / 2, -sw / 2, n.w / 2, sw / 2), stroke);
+            return;
+        }
+        if (g && n.kind === 'Rect' && !(n.cornerRadius > 0) && (solid || !stroke)) {
+            const b = g.box(-n.w / 2, -n.h / 2, n.w / 2, n.h / 2);
+            if (ink(n.fill)) g.fill(b, ink(n.fill));
+            if (stroke) g.frame(b, g.count(sw), stroke);
+            return;
+        }
         if (n.kind === 'Line') {
             if (!stroke) return;
             ctx.beginPath(); ctx.moveTo(-n.w / 2, 0); ctx.lineTo(n.w / 2, 0);
@@ -372,10 +422,11 @@
     // For the cell editor and hit-testing: column widths in mm, font size per cell in mm.
     LM.tableLayout = (n) => { const T = tableLayout(n); return { colW: T.colW, font: T.k.map(k => k * REF) }; };
 
-    function drawTable(ctx, n) {
+    function drawTable(ctx, n, g) {
         const T = tableLayout(n), x0 = -n.w / 2, y0 = -n.h / 2;
         const inv = n.header === 'Invert';
-        if (inv) { ctx.fillStyle = '#000'; ctx.fillRect(x0, y0, n.w, T.rowH); }
+        if (inv && g) g.fill(g.box(x0, y0, x0 + n.w, y0 + T.rowH), '#000');
+        else if (inv) { ctx.fillStyle = '#000'; ctx.fillRect(x0, y0, n.w, T.rowH); }
         ctx.textBaseline = 'alphabetic';
         for (let r = 0; r < T.rows; r++) {
             let x = x0;
@@ -395,6 +446,19 @@
                 }
                 x += cw;
             }
+        }
+        if (g) {
+            if (n.grid > 0) {
+                const h = n.grid / 2;
+                for (let c = 1, x = x0; c < T.cols; c++) {
+                    x += T.colW[c - 1];
+                    g.fill(g.box(x - h, y0, x + h, y0 + n.h), '#000');
+                    if (inv) g.fill(g.box(x - h, y0, x + h, y0 + T.rowH), '#fff');
+                }
+                for (let r = 1; r < T.rows; r++) g.fill(g.box(x0, y0 + r * T.rowH - h, x0 + n.w, y0 + r * T.rowH + h), '#000');
+            }
+            if (n.border > 0) g.frame(g.box(x0, y0, x0 + n.w, y0 + n.h), g.count(n.border), '#000');
+            return;
         }
         ctx.setLineDash([]); ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
         if (n.grid > 0) {
@@ -419,6 +483,7 @@
 
     // ---- items -------------------------------------------------------------------
     function drawItems(ctx, frame, s, print) {
+        const base = ctx.getTransform();
         for (const n of frame.items) {
             ctx.save();
             ctx.translate((n.x + n.w / 2) * s, (n.y + n.h / 2) * s);
@@ -426,8 +491,8 @@
             ctx.scale(s, s);
             switch (n.type) {
                 case 'text': drawText(ctx, n); break;
-                case 'shape': drawShape(ctx, n); break;
-                case 'table': drawTable(ctx, n); break;
+                case 'shape': drawShape(ctx, n, dotGrid(ctx, base, s, frame.dpi)); break;
+                case 'table': drawTable(ctx, n, dotGrid(ctx, base, s, frame.dpi)); break;
                 case 'image': drawImage(ctx, n, s, print, frame.dpi); break;
                 case 'barcode': drawBarcode(ctx, n, s, print, frame.dpi); break;
             }

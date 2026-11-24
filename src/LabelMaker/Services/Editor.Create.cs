@@ -31,6 +31,10 @@ public sealed partial class Editor
         Refresh();
     }
 
+    /// <summary>Vector art (SVG, icons) is line work: print it solid rather than dithered.</summary>
+    static DitherMode DitherFor(string? dataUrl) =>
+        dataUrl?.StartsWith("data:image/svg", StringComparison.Ordinal) == true ? DitherMode.Threshold : DitherMode.FloydSteinberg;
+
     /// <summary>Aspect ratio (w/h) the armed tool is locked to, if any.</summary>
     double? ToolAspect => Tool switch
     {
@@ -91,7 +95,7 @@ public sealed partial class Editor
             case "image" when _pendingImage is { } img:
             {
                 double ih = Math.Max(3, UsableHeight);
-                return new ImageNode { AssetId = img.AssetId, H = ih, W = ih * img.Aspect };
+                return new ImageNode { AssetId = img.AssetId, H = ih, W = ih * img.Aspect, Dither = DitherFor(Doc.Assets.GetValueOrDefault(img.AssetId)) };
             }
         }
         return null;
@@ -187,7 +191,7 @@ public sealed partial class Editor
         double h = Math.Max(3, UsableHeight), w = h * pxW / Math.Max(1, pxH);
         double maxW = Math.Max(5, Doc.WidthMm - Doc.Margins.L - Doc.Margins.R);
         if (w > maxW && !Doc.AutoWidth) { h *= maxW / w; w = maxW; }
-        var node = new ImageNode { AssetId = AddAsset(dataUrl), W = w, H = h };
+        var node = new ImageNode { AssetId = AddAsset(dataUrl), W = w, H = h, Dither = DitherFor(dataUrl) };
         Add(node);
         if (sx >= 0 && sy >= 0)
         {

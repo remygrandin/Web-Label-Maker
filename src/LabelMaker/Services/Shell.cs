@@ -3,7 +3,7 @@ using Microsoft.JSInterop;
 
 namespace LabelMaker.Services;
 
-public enum Dialog { None, Library, Templates, Print }
+public enum Dialog { None, Library, Templates, Print, Images, Icons }
 
 public sealed class AppSettings
 {
@@ -17,6 +17,10 @@ public sealed class AppSettings
     public string AlignTo { get; set; } = "auto";
     public string PrinterModel { get; set; } = "pt-e560bt";
     public List<string> RecentFonts { get; set; } = new();
+    /// <summary>Icon search: leave out multi-colour sets, which only print as dither.</summary>
+    public bool IconsMono { get; set; } = true;
+    /// <summary>Icons placed on a label are also kept in the image library.</summary>
+    public bool KeepIcons { get; set; }
 }
 
 /// <summary>App chrome state: persisted settings, the open dialog, toasts.</summary>

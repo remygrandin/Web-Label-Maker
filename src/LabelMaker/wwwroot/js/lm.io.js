@@ -41,9 +41,10 @@
     // "meta" holds single values such as the autosaved working document.
     let dbp = null;
     const db = () => dbp ??= new Promise((resolve, reject) => {
-        const req = indexedDB.open('weblabelmaker', 1);
+        // "images" (added in version 2) holds the user's image library: { id, name, modified, w, h, dataUrl }
+        const req = indexedDB.open('weblabelmaker', 2);
         req.onupgradeneeded = () => {
-            for (const s of ['docs', 'templates', 'meta']) if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s, { keyPath: 'id' });
+            for (const s of ['docs', 'templates', 'meta', 'images']) if (!req.result.objectStoreNames.contains(s)) req.result.createObjectStore(s, { keyPath: 'id' });
         };
         req.onsuccess = () => resolve(req.result);
         req.onerror = () => reject(req.error);
@@ -82,13 +83,24 @@
         document.body.appendChild(a); a.click(); a.remove();
     };
 
-    const pick = (accept) => new Promise((resolve) => {
+    const pickMany = (accept, multiple) => new Promise((resolve) => {
         const input = document.createElement('input');
-        input.type = 'file'; input.accept = accept;
-        input.onchange = () => resolve(input.files[0] || null);
-        input.oncancel = () => resolve(null);
+        input.type = 'file'; input.accept = accept; input.multiple = !!multiple;
+        input.onchange = () => resolve([...input.files]);
+        input.oncancel = () => resolve([]);
         input.click();
     });
+    const pick = async (accept) => (await pickMany(accept, false))[0] || null;
+
+    const loadImage = (src) => new Promise((res, rej) => { const img = new Image(); img.onload = () => res(img); img.onerror = rej; img.src = src; });
+    const svgDataUrl = (text) => 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(text)));
+
+    // An SVG stays a vector, so it is redrawn sharp at whatever size it is given on the label.
+    async function readSvg(text, name) {
+        const dataUrl = svgDataUrl(text);
+        const img = await loadImage(dataUrl);
+        return { dataUrl, w: img.naturalWidth || 300, h: img.naturalHeight || 300, name };
+    }
 
     LM.pickText = async (accept) => {
         const file = await pick(accept);
@@ -98,9 +110,9 @@
     // Read an image, cap its size, and return a compact data URL to embed in the document.
     LM.readImageFile = async (file) => {
         try {
+            if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) return await readSvg(await file.text(), file.name);
             const url = URL.createObjectURL(file);
-            const img = new Image();
-            await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+            const img = await loadImage(url);
             URL.revokeObjectURL(url);
             const max = 1600, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
             const w = Math.max(1, Math.round(img.naturalWidth * k)), h = Math.max(1, Math.round(img.naturalHeight * k));
@@ -119,5 +131,39 @@
     LM.pickImage = async () => {
         const file = await pick('image/*');
         return file ? LM.readImageFile(file) : null;
+    };
+
+    LM.pickImages = async () => {
+        const out = [];
+        for (const file of await pickMany('image/*', true)) { const img = await LM.readImageFile(file); if (img) out.push(img); }
+        return out;
+    };
+
+    // ---- Iconify -----------------------------------------------------------------------
+    // Open-source icon sets served by the public Iconify API. Only the search words and
+    // the chosen icon's name leave the browser.
+    const ICONIFY = 'https://api.iconify.design';
+
+    // -> { icons: ["set:name", …], total } or { error }
+    LM.iconSearch = async (query, mono) => {
+        try {
+            const q = String(query || '').trim() + (mono ? ' palette=false' : '');
+            const res = await fetch(`${ICONIFY}/search?query=${encodeURIComponent(q)}&limit=120`);
+            if (!res.ok) return { icons: [], total: 0, error: `The icon service answered ${res.status}.` };
+            const data = await res.json();
+            return { icons: data.icons || [], total: data.total || 0, error: null };
+        } catch {
+            return { icons: [], total: 0, error: 'Could not reach the icon service. Check your connection.' };
+        }
+    };
+
+    LM.iconUrl = (id, height) => { const [set, name] = String(id).split(':'); return `${ICONIFY}/${set}/${name}.svg?height=${height || 32}&color=%23000`; };
+
+    LM.iconFetch = async (id) => {
+        try {
+            const res = await fetch(LM.iconUrl(id, 256));
+            if (!res.ok) return null;
+            return await readSvg(await res.text(), String(id));
+        } catch { return null; }
     };
 })();

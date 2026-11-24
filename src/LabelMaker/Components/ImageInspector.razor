@@ -1,10 +1,13 @@
 @inject Editor Ed
 @inject IJSRuntime JS
+@inject Library Lib
+@inject Shell Shell
 
 <div class="sect">
     <div class="sect-title">
         Image
         <span class="grow"></span>
+        <button class="btn sm" title="Keep this picture in My images to reuse it on other labels" @onclick="Keep">Keep</button>
         <button class="btn sm" @onclick="Replace">Replace…</button>
     </div>
     <div class="row">
@@ -49,6 +52,13 @@
     void Slide(Action<int> set, ChangeEventArgs e)
     {
         if (int.TryParse(e.Value?.ToString(), out var v)) Ed.Mutate(() => set(v), "img-slider");
+    }
+
+    async Task Keep()
+    {
+        if (!Ed.Doc.Assets.TryGetValue(Node.AssetId, out var url)) return;
+        await Lib.AddImage(Node.Name.Length > 0 ? Node.Name : "Image", url, Node.W * 100, Node.H * 100);
+        Shell.Toast("Kept in My images.");
     }
 
     async Task Replace()

@@ -6,6 +6,21 @@ namespace LabelMaker.Services;
 /// <summary>Listing info for a stored label or template (the document itself is loaded on demand).</summary>
 public sealed record LibraryEntry(string Id, string Name, string Modified, double W, double H, string? Thumb);
 
+/// <summary>A picture kept in the browser's image library (a bitmap or SVG as a data URL).</summary>
+public sealed class StoredImage
+{
+    public string Id { get; set; } = Ids.New();
+    public string Name { get; set; } = "";
+    public string Modified { get; set; } = DateTime.UtcNow.ToString("o");
+    public double W { get; set; }
+    public double H { get; set; }
+    public string DataUrl { get; set; } = "";
+    [System.Text.Json.Serialization.JsonIgnore] public bool IsVector => DataUrl.StartsWith("data:image/svg", StringComparison.Ordinal);
+}
+
+/// <summary>An image read from a file or fetched from the icon service.</summary>
+public sealed record PickedImage(string DataUrl, double W, double H, string Name);
+
 /// <summary>The on-disk JSON envelope for exports: one label, one template, or a whole archive.</summary>
 public sealed class LabelFile
 {
@@ -18,6 +33,7 @@ public sealed class LabelFile
     public LabelDocument? Document { get; set; }
     public List<LabelDocument>? Documents { get; set; }
     public List<LabelDocument>? Templates { get; set; }
+    public List<StoredImage>? Images { get; set; }
 }
 
 /// <summary>
@@ -225,6 +241,51 @@ public sealed class Library
         await Autosave();
     }
 
+    // ---- image library -----------------------------------------------------------------------
+
+    public const string Images = "images";
+
+    /// <summary>Raised when the stored images change.</summary>
+    public event Action? ImagesChanged;
+
+    public async Task<List<StoredImage>> ListImages() =>
+        await _js.InvokeAsync<List<StoredImage>>("LM.db.list", Images) ?? new();
+
+    ValueTask PutImage(StoredImage i) => _js.InvokeVoidAsync("LM.db.put", Images, new
+    {
+        id = i.Id, name = i.Name, modified = i.Modified, w = i.W, h = i.H, dataUrl = i.DataUrl,
+    });
+
+    public async Task AddImage(string name, string dataUrl, double w, double h)
+    {
+        // the same picture is kept once
+        if ((await ListImages()).Any(i => i.DataUrl == dataUrl)) return;
+        var stem = System.IO.Path.GetFileNameWithoutExtension(name);
+        await PutImage(new StoredImage { Name = stem.Length > 0 ? stem : "Image", DataUrl = dataUrl, W = w, H = h });
+        ImagesChanged?.Invoke();
+    }
+
+    /// <summary>Pick one or more files and keep them; returns how many were added.</summary>
+    public async Task<int> AddImageFiles()
+    {
+        var picked = await _js.InvokeAsync<List<PickedImage>>("LM.pickImages") ?? new();
+        foreach (var p in picked) await AddImage(p.Name, p.DataUrl, p.W, p.H);
+        return picked.Count;
+    }
+
+    public async Task RenameImage(StoredImage image, string name)
+    {
+        image.Name = name.Trim().Length > 0 ? name.Trim() : image.Name;
+        await PutImage(image);
+        ImagesChanged?.Invoke();
+    }
+
+    public async Task DeleteImage(string id)
+    {
+        await _js.InvokeVoidAsync("LM.db.del", Images, id);
+        ImagesChanged?.Invoke();
+    }
+
     // ---- import / export ---------------------------------------------------------------------
 
     static string FileName(string name, string suffix)
@@ -256,9 +317,9 @@ public sealed class Library
     public async Task ExportArchive()
     {
         if (_ed.Dirty && _ed.Doc.Nodes.Count > 0) await Save(quiet: true);
-        var file = new LabelFile { Kind = "archive", Documents = await All(Docs), Templates = await All(Templates) };
+        var file = new LabelFile { Kind = "archive", Documents = await All(Docs), Templates = await All(Templates), Images = await ListImages() };
         await Download($"weblabelmaker-archive-{DateTime.Now:yyyy-MM-dd}.json", file);
-        _shell.Toast($"Exported {file.Documents.Count} labels and {file.Templates.Count} templates.");
+        _shell.Toast($"Exported {file.Documents.Count} labels, {file.Templates.Count} templates and {file.Images.Count} images.");
     }
 
     public async Task Import()
@@ -273,7 +334,9 @@ public sealed class Library
             {
                 foreach (var d in file.Documents ?? new()) await Put(Docs, d);
                 foreach (var t in file.Templates ?? new()) await Put(Templates, t);
-                _shell.Toast($"Imported {file.Documents?.Count ?? 0} labels and {file.Templates?.Count ?? 0} templates.");
+                foreach (var i in file.Images ?? new()) await PutImage(i);
+                ImagesChanged?.Invoke();
+                _shell.Toast($"Imported {file.Documents?.Count ?? 0} labels, {file.Templates?.Count ?? 0} templates and {file.Images?.Count ?? 0} images.");
             }
             else if (file.Document is { } doc)
             {

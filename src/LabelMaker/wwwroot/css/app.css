@@ -385,6 +385,19 @@ input, textarea { user-select: text; }
 .card-meta .n { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-meta .s { font: 10.5px var(--mono); color: var(--ink-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tag { font: 9.5px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); border: 1px solid var(--line-strong); padding: 0 4px; border-radius: 2px; }
+.cards.small { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); }
+.card-thumb:hover { outline: 1px solid var(--accent); outline-offset: -1px; }
+.inp.bare { flex: 1; min-width: 0; background: none; border-color: transparent; padding: 0 3px; font-weight: 500; }
+.inp.bare:hover { border-color: var(--line); }
+.inp.bare:focus { border-color: var(--accent); background: var(--field); }
+.icon-search { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.icon-search .inp { flex: 1; height: 28px; }
+.icon-search .check { white-space: nowrap; }
+.icon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 6px; }
+.icon-grid button { aspect-ratio: 1; display: grid; place-items: center; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: 0; cursor: pointer; }
+.icon-grid button:hover, .icon-grid button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.icon-grid button:disabled { cursor: progress; }
+.icon-grid img { width: 32px; height: 32px; object-fit: contain; }
 
 /* ---------- font picker ---------- */
 .fontbtn { width: 100%; height: 24px; display: flex; align-items: center; gap: 6px; padding: 0 7px; background: var(--field); border: 1px solid var(--line); border-radius: 2px; cursor: pointer; text-align: left; }

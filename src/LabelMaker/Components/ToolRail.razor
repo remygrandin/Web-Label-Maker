@@ -42,7 +42,19 @@
         }
     </div>
 
-    <button class="tool @On("image")" data-tip="Image: pick a file, then drag to place (or drop / paste one)" @onclick="PickImage"><Icon Name="image" /></button>
+    <div style="position:relative">
+        <button class="tool @On("image")" data-tip="Image or icon" @onclick="() => Toggle(6)"><Icon Name="image" /></button>
+        @if (_fly == 6)
+        {
+            <div class="menu-scrim" @onclick="() => _fly = 0"></div>
+            <div class="menu" style="left:44px;top:0">
+                <div class="menu-head">Images</div>
+                <button class="menu-item" title="You can also drop or paste a picture onto the label" @onclick="PickImage"><Icon Name="upload" />From a file…</button>
+                <button class="menu-item" @onclick="() => Show(Dialog.Images)"><Icon Name="folder" />From my images…</button>
+                <button class="menu-item" @onclick="() => Show(Dialog.Icons)"><Icon Name="star" />Search icons…</button>
+            </div>
+        }
+    </div>
     <div class="rule"></div>
 
     <div style="position:relative">
@@ -119,6 +131,12 @@
     }
 
     sealed record Picked(string DataUrl, double W, double H, string Name);
+
+    void Show(Dialog d)
+    {
+        _fly = 0;
+        Shell.Open(d);
+    }
 
     async Task PickImage()
     {

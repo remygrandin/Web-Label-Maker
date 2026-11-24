@@ -22,6 +22,11 @@
     <LibraryDialog @key="Shell.Dialog" />
 }
 
+@if (Shell.Dialog is Dialog.Images or Dialog.Icons)
+{
+    <ImageDialog @key="Shell.Dialog" />
+}
+
 @if (Shell.Dialog == Dialog.Print)
 {
     <PrintDialog />
