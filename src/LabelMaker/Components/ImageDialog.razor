@@ -5,7 +5,7 @@
 @inject IJSRuntime JS
 
 <div class="scrim">
-    <div class="dialog">
+    <div class="dialog" data-image-drop>
         <div class="dhead">
             <div class="tabs">
                 <button class="tab @(_icons ? "" : "on")" @onclick="() => _icons = false">My images</button>
@@ -38,7 +38,8 @@
                 @if (_images.Count == 0)
                 {
                     <div class="empty">
-                        Nothing here yet. Add logos, symbols or SVG files you reuse, and place them on any label from this list.
+                        Nothing here yet. Drop pictures or SVG files here, or use Add images, to keep logos and symbols you reuse.
+                        Place them on any label from this list.
                         They are stored in this browser only.
                     </div>
                 }
@@ -112,7 +113,7 @@
             }
             else
             {
-                <span class="hint" style="margin:0">Click a picture, then click or drag on the label to place it.</span>
+                <span class="hint" style="margin:0">Click a picture, then click or drag on the label to place it. Drop files here to add them.</span>
                 <span class="grow"></span>
                 <span class="hint" style="margin:0">Included in Library → Export all.</span>
             }
@@ -156,9 +157,27 @@
         await Load();
     }
 
+    DotNetObjectReference<ImageDialog>? _self;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && _icons) await JS.InvokeVoidAsync("LM.focus", "#icon-query", true);
+        if (!firstRender) return;
+        // files dropped on the dialog are handed to OnImagesDropped
+        _self = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("LM.setImageDrop", _self);
+        if (_icons) await JS.InvokeVoidAsync("LM.focus", "#icon-query", true);
+    }
+
+    /// <summary>Pictures dropped onto the dialog go into the library.</summary>
+    [JSInvokable]
+    public async Task OnImagesDropped(PickedImage[] images, int skipped)
+    {
+        foreach (var i in images) await Lib.AddImage(i.Name, i.DataUrl, i.W, i.H);
+        _icons = false; // show where they went
+        string added = images.Length switch { 0 => "", 1 => "Image added to your library.", var n => $"{n} images added to your library." };
+        string left = skipped > 0 ? $"{skipped} file{(skipped > 1 ? "s were" : " was")} not a picture and {(skipped > 1 ? "were" : "was")} skipped." : "";
+        if (added.Length + left.Length > 0) Shell.Toast((added + " " + left).Trim());
+        StateHasChanged();
     }
 
     async Task Load()
@@ -241,5 +260,7 @@
     {
         _typing?.Cancel();
         Lib.ImagesChanged -= Reload;
+        _ = JS.InvokeVoidAsync("LM.setImageDrop", (object?)null);
+        _self?.Dispose();
     }
 }

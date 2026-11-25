@@ -57,7 +57,8 @@ To keep an autosaved label for good, open it and save it to the library.
 The **Image** tool in the left rail has two sources: a file, or **My images**, a library
 of pictures and SVG files stored in this browser.
 
-- **Add images…** stores files in the library. SVG files stay vector, so they print
+- **Add images…** stores files in the library; you can also drop files straight onto
+  the dialog. SVG files stay vector, so they print
   sharp at any size.
 - Click a picture, then click or drag on the label to place it.
 - **Keep** in an image's settings saves a picture already on a label to the library.

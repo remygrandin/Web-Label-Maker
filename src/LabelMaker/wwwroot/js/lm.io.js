@@ -314,4 +314,36 @@
             return alive() ? none('Could not reach the icon service. Check your connection.') : none(null, true);
         }
     };
+
+    // ---- dropping files onto the image library ---------------------------------------------
+    // While the image dialog is open it registers itself here; files dropped anywhere on the
+    // dialog are read and handed to it. Drops elsewhere on a dialog are swallowed so the
+    // browser does not navigate away to the file.
+    let imageDrop = null;
+    LM.setImageDrop = (ref) => { imageDrop = ref; };
+
+    const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+    const dropZone = (e) => e.target.closest?.('[data-image-drop]');
+    document.addEventListener('dragover', (e) => {
+        if (!hasFiles(e) || !e.target.closest?.('.scrim')) return;
+        e.preventDefault();
+        const zone = dropZone(e);
+        e.dataTransfer.dropEffect = zone && imageDrop ? 'copy' : 'none';
+        if (zone) zone.classList.add('dropping');
+    });
+    document.addEventListener('dragleave', (e) => {
+        const zone = dropZone(e);
+        if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('dropping');
+    });
+    document.addEventListener('drop', async (e) => {
+        if (!hasFiles(e) || !e.target.closest?.('.scrim')) return;
+        e.preventDefault();
+        const zone = dropZone(e);
+        if (zone) zone.classList.remove('dropping');
+        if (!zone || !imageDrop) return;
+        const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/') || /\.svg$/i.test(f.name));
+        const images = [];
+        for (const file of files) { const img = await LM.readImageFile(file); if (img) images.push(img); }
+        await imageDrop.invokeMethodAsync('OnImagesDropped', images, e.dataTransfer.files.length - images.length);
+    });
 })();
