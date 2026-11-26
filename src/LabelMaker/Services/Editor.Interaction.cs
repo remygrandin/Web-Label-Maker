@@ -18,7 +18,7 @@ public sealed partial class Editor
     Drag _drag;
     double _sx, _sy, _wx0, _wy0, _pan0X, _pan0Y, _angle0;
     int _hx, _hy;
-    bool _lineEndB, _changed, _forceUniform;
+    bool _lineEndB, _changed, _forceUniform, _lockUniform, _alt;
     Frame _f0;
     Rect _b0;
     List<LeafStart> _starts = new();
@@ -106,7 +106,8 @@ public sealed partial class Editor
         Selection.AddRange(nodes.Select(n => n.Id));
     }
 
-    static bool NeedsUniform(Node n) => n.LockAspect || n is TextNode { Mode: TextMode.Auto } or BarcodeNode { Is2D: true };
+    /// <summary>Objects that cannot be stretched at all: text that sizes itself, and 2D codes.</summary>
+    static bool MustBeUniform(Node n) => n is TextNode { Mode: TextMode.Auto } or BarcodeNode { Is2D: true };
 
     void BeginTransform()
     {
@@ -116,8 +117,10 @@ public sealed partial class Editor
         _b0 = Geo.Bounds(SelectedNodes) ?? default;
         _changed = false;
         _forceUniform = _starts.Count == 1 && Single is not GroupNode
-            ? NeedsUniform(_starts[0].Node)
-            : _starts.Any(s => NeedsUniform(s.Node) || Math.Abs(s.Rot % 90) > 0.01);
+            ? MustBeUniform(_starts[0].Node)
+            : _starts.Any(s => MustBeUniform(s.Node) || Math.Abs(s.Rot % 90) > 0.01);
+        // a proportion lock the user set: Shift releases it for one drag
+        _lockUniform = _starts.Any(s => s.Node.LockAspect && !MustBeUniform(s.Node));
     }
 
     void MarkChanged()
@@ -246,6 +249,7 @@ public sealed partial class Editor
     public string PointerMove(double sx, double sy, int mods)
     {
         bool shift = (mods & 1) != 0, ctrl = (mods & 2) != 0;
+        _alt = (mods & 4) != 0;
         var (wx, wy) = ToWorld(sx, sy);
         Cursor = (wx, wy);
 
@@ -302,7 +306,8 @@ public sealed partial class Editor
                 MoveBy(wx - _wx0, wy - _wy0, shift, !ctrl);
                 break;
             case Drag.Resize:
-                ApplyResize(ResizeFrame(wx, wy, shift || _forceUniform, !ctrl));
+                // Shift keeps proportions (or frees an object whose proportions are locked); Alt resizes about the centre
+                ApplyResize(ResizeFrame(wx, wy, _forceUniform || (shift != _lockUniform), !ctrl));
                 break;
             case Drag.Rotate:
                 RotateTo(wx, wy, shift);
@@ -322,6 +327,7 @@ public sealed partial class Editor
     public void PointerUp(double sx, double sy, int mods)
     {
         bool shift = (mods & 1) != 0;
+        _alt = (mods & 4) != 0;
         var drag = _drag;
         _drag = Drag.None;
         _guides = new();
@@ -418,10 +424,14 @@ public sealed partial class Editor
             if (_hy != 0 && SnapDelta([wy], ys, tol, out var ly) is { } ddy) { wy += ddy; _guides.Add(new GuideLine(false, ly)); }
         }
         var (qx, qy) = Geo.Rot(wx - f.Cx, wy - f.Cy, -f.Rot);
-        double ax = -_hx * f.W / 2, ay = -_hy * f.H / 2;
+        // The point that stays put: the opposite edge or corner, or the centre with Alt held.
+        // From the centre, the dragged edge and its opposite move together, so sizes change twice as fast.
+        bool centred = _alt;
+        double ax = centred ? 0 : -_hx * f.W / 2, ay = centred ? 0 : -_hy * f.H / 2;
+        double reach = centred ? 2 : 1;
         const double min = 0.3;
-        double w = _hx != 0 ? Math.Max(min, (qx - ax) * _hx) : f.W;
-        double h = _hy != 0 ? Math.Max(min, (qy - ay) * _hy) : f.H;
+        double w = _hx != 0 ? Math.Max(min, (qx - ax) * _hx * reach) : f.W;
+        double h = _hy != 0 ? Math.Max(min, (qy - ay) * _hy * reach) : f.H;
         if (uniform && f.W > 0 && f.H > 0)
         {
             double s = _hx != 0 && _hy != 0 ? Math.Max(w / f.W, h / f.H) : _hx != 0 ? w / f.W : h / f.H;
@@ -433,13 +443,13 @@ public sealed partial class Editor
                 double tol = 6 / Zoom, fixedX = f.Cx + ax, fixedY = f.Cy + ay;
                 double? near = null, scale = null;
                 GuideLine? guide = null;
-                if (_hx != 0 && SnapDelta([fixedX + _hx * w], xs, tol, out var lx) is { } ddx)
+                if (_hx != 0 && SnapDelta([fixedX + _hx * w / reach], xs, tol, out var lx) is { } ddx)
                 {
-                    near = Math.Abs(ddx); scale = (lx - fixedX) * _hx / f.W; guide = new GuideLine(true, lx);
+                    near = Math.Abs(ddx); scale = (lx - fixedX) * _hx * reach / f.W; guide = new GuideLine(true, lx);
                 }
-                if (_hy != 0 && SnapDelta([fixedY + _hy * h], ys, tol, out var ly) is { } ddy && (near is null || Math.Abs(ddy) < near))
+                if (_hy != 0 && SnapDelta([fixedY + _hy * h / reach], ys, tol, out var ly) is { } ddy && (near is null || Math.Abs(ddy) < near))
                 {
-                    scale = (ly - fixedY) * _hy / f.H; guide = new GuideLine(false, ly);
+                    scale = (ly - fixedY) * _hy * reach / f.H; guide = new GuideLine(false, ly);
                 }
                 if (scale is { } k && guide is not null && k * f.W >= min && k * f.H >= min)
                 {
@@ -448,6 +458,7 @@ public sealed partial class Editor
                 }
             }
         }
+        if (centred) return new Frame(f.Cx, f.Cy, w, h, f.Rot);
         var (ox, oy) = Geo.Rot(ax + _hx * w / 2, ay + _hy * h / 2, f.Rot);
         return new Frame(f.Cx + ox, f.Cy + oy, w, h, f.Rot);
     }
@@ -467,8 +478,8 @@ public sealed partial class Editor
         }
         // several objects: scale every box about the fixed corner of the selection frame
         double ax = _f0.Cx - _hx * _f0.W / 2, ay = _f0.Cy - _hy * _f0.H / 2;
-        if (_hx == 0) ax = _f0.Cx;
-        if (_hy == 0) ay = _f0.Cy;
+        if (_hx == 0 || _alt) ax = _f0.Cx;
+        if (_hy == 0 || _alt) ay = _f0.Cy;
         foreach (var s in _starts)
         {
             bool quarter = (int)Math.Round(s.Rot / 90) % 2 != 0;

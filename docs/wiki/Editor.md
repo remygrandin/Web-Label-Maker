@@ -57,6 +57,21 @@ Select an object to see its settings on the right.
 - Ctrl+] and Ctrl+[ move an object forward or backward. You can also drag rows in the Layers panel.
 - Ctrl+Z / Ctrl+Y undo and redo. Ctrl+D duplicates.
 
+### Resizing with modifier keys
+
+Drag a handle to resize. Keys held during the drag change how:
+
+| Key | Effect |
+|---|---|
+| Shift | Keeps the proportions. On an object whose proportions are locked, it releases the lock for that drag instead. |
+| Alt | Resizes about the centre: the opposite side moves too. |
+| Shift + Alt | Both. |
+| Ctrl | Turns snapping off for that drag. |
+
+The keys can be pressed or released in the middle of a drag. Text that sizes itself
+and 2D codes always keep their proportions. While drawing a new object, Shift makes it
+square and Alt draws it outwards from the starting point.
+
 ### Snapping
 
 Moving and resizing snap to nearby lines. The **Snap to** switches in the bottom bar

@@ -112,6 +112,8 @@ public sealed partial class Editor
             dx = Math.Sign(dx == 0 ? 1 : dx) * w;
             dy = Math.Sign(dy == 0 ? 1 : dy) * w / a;
         }
+        // Alt draws outwards from the point where the drag started
+        if (_alt) return new Rect(_wx0 - Math.Abs(dx), _wy0 - Math.Abs(dy), 2 * Math.Abs(dx), 2 * Math.Abs(dy));
         return new Rect(Math.Min(_wx0, _wx0 + dx), Math.Min(_wy0, _wy0 + dy), Math.Abs(dx), Math.Abs(dy));
     }
 

@@ -71,10 +71,11 @@
             if (isEditable(document.activeElement)) document.activeElement.blur();
             canvas.setPointerCapture(e.pointerId);
             const [x, y] = pos(e);
+            down = true; last = [x, y];
             ref.invokeMethod('OnPointerDown', x, y, e.button, mods(e));
             e.preventDefault();
         });
-        let pending = null;
+        let pending = null, down = false, last = [0, 0];
         canvas.addEventListener('pointermove', (e) => {
             const first = !pending;
             pending = e;
@@ -82,10 +83,12 @@
             requestAnimationFrame(() => {
                 const ev = pending; pending = null;
                 const [x, y] = pos(ev);
+                last = [x, y];
                 canvas.style.cursor = ref.invokeMethod('OnPointerMove', x, y, mods(ev)) || 'default';
             });
         });
         const up = (e) => {
+            down = false;
             const [x, y] = pos(e);
             ref.invokeMethod('OnPointerUp', x, y, mods(e));
         };
@@ -111,6 +114,15 @@
             if (ref.invokeMethod('OnKey', e.key, mods(e))) e.preventDefault();
         });
         window.addEventListener('keyup', (e) => { if (e.code === 'Space') state.space = false; });
+        // Pressing or releasing Shift, Alt or Ctrl in the middle of a drag takes effect at once,
+        // without waiting for the pointer to move. Alt is also kept from opening the browser menu.
+        const modifier = (e) => {
+            if (!down || !['Shift', 'Alt', 'Control', 'Meta'].includes(e.key)) return;
+            if (e.key === 'Alt') e.preventDefault();
+            canvas.style.cursor = ref.invokeMethod('OnPointerMove', last[0], last[1], mods(e)) || 'default';
+        };
+        window.addEventListener('keydown', modifier);
+        window.addEventListener('keyup', modifier);
         window.addEventListener('blur', () => { state.space = false; });
 
         window.addEventListener('paste', async (e) => {

@@ -35,7 +35,7 @@
         "text" => "Click to add text, or drag out a box · Esc to cancel",
         "image" => "Drag to place the image, or click for the default size · Esc to cancel",
         var c when c!.StartsWith("cut:") => "Click on the label where the tape should be cut · Esc to cancel",
-        _ => "Drag to draw, or click for the default size · Shift keeps it square · Esc to cancel",
+        _ => "Drag to draw, or click for the default size · Shift keeps it square · Alt draws from the centre · Esc to cancel",
     };
 
     protected override void OnInitialized() => Ed.Changed += Update;
