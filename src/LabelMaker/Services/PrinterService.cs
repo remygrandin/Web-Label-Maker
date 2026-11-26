@@ -360,33 +360,67 @@ public sealed class PrinterService
             }
             finally { _ed.SeqOverride = null; _ed.Sync(); }
 
-            // One page at a time, as Brother's reference describes: send a page, wait for the printer
+            // Page by page, as Brother's reference describes: send a page, wait for the printer
             // to say it has printed it and is ready to receive again, then send the next. Sending
             // every page in one go overruns the printer's buffer after a few labels and leaves it
             // stuck on a half-received page.
             var jobs = Brother.BuildPageJobs(Model, Media, g, Options, pages);
             Say($"Printing {pages.Count} page{(pages.Count > 1 ? "s" : "")} ({jobs.Sum(j => j.Length):N0} bytes, {pages.Sum(p => p.Lines)} raster lines).");
-            int done = 0;
-            bool silent = false;
+            //
+            // Waiting for a page to finish before sending the next leaves the printer idle while the
+            // next page travels over the link: a visible pause on every label. So once the printer is
+            // about half-way through a page, the next one is sent ahead, to be there when it is
+            // needed. That keeps at most a page and a half in the printer, well under what overran
+            // it, and is only done for pages small enough for that to hold.
+            const int AheadLimit = 12_000;    // bytes: larger pages are sent strictly one at a time
+            int done = 0, sent = 0;
+            bool silent = false, confirmed = true;
+            double? secondsPerLine = null;    // print speed, measured on this job's pages
+            async Task Send(int k)
+            {
+                sending = true;
+                await _js.InvokeVoidAsync("LM.serial.write", jobs[k]);
+                sending = false;
+                sent = k + 1;
+            }
+
+            await _js.InvokeVoidAsync("LM.serial.flushInput");
             for (int n = 0; n < jobs.Count; n++)
             {
-                await _js.InvokeVoidAsync("LM.serial.flushInput");
-                sending = true;
-                await _js.InvokeVoidAsync("LM.serial.write", jobs[n]);
-                sending = false;
+                if (sent <= n)
+                {
+                    // not sent ahead: wait for the printer to say it is ready for data, then send
+                    if (n > 0 && confirmed) await WaitReady();
+                    await Send(n);
+                }
 
                 // generous: the page has to be printed, and a cut takes a moment
                 var deadline = DateTime.UtcNow.AddSeconds(25 + pages[n].Lines / 40.0);
                 bool printed = false;
+                DateTime? began = null;
+                bool mayGoAhead = n + 1 < jobs.Count && jobs[n].Length <= AheadLimit && jobs[n + 1].Length <= AheadLimit;
                 while (!printed && DateTime.UtcNow < deadline)
                 {
-                    var raw = await _js.InvokeAsync<byte[]?>("LM.serial.readStatus", 2000);
+                    if (mayGoAhead && sent == n + 1 && began is { } b && secondsPerLine is { } pace
+                        && (DateTime.UtcNow - b).TotalSeconds >= pace * pages[n].Lines * 0.5)
+                        await Send(n + 1);
+
+                    var raw = await _js.InvokeAsync<byte[]?>("LM.serial.readStatus", 250);
                     if (raw is not { Length: 32 }) continue;
                     var s = new PrinterStatus { Raw = raw };
                     switch (s.StatusType)
                     {
+                        case 0x06 when s.Phase == 1:
+                            began ??= DateTime.UtcNow;   // printing has started
+                            break;
                         case 0x01:
                             printed = true; done++;
+                            if (began is { } started && pages[n].Lines > 0)
+                            {
+                                // the slowest page seen sets the pace, so the next one is never sent too early
+                                double pageSeconds = (DateTime.UtcNow - started).TotalSeconds / pages[n].Lines;
+                                secondsPerLine = Math.Max(secondsPerLine ?? 0, pageSeconds);
+                            }
                             Say(pages.Count > 1 ? $"Printed page {done} of {pages.Count}." : "Printing completed.");
                             break;
                         case 0x02:
@@ -397,16 +431,14 @@ public sealed class PrinterService
                         case 0x04: Say("The printer was switched off."); return;
                     }
                 }
+                confirmed = printed;
                 if (!printed)
                 {
                     // No word from the printer. Carry on rather than leave the job without its final
                     // feed and cut, but say so: from here the pages are sent without confirmation.
                     if (!silent) Say("No completion message from the printer; continuing without confirmation.");
                     silent = true;
-                    continue;
                 }
-                // it then announces that it is waiting for data again
-                if (n < jobs.Count - 1) await WaitReady();
             }
             if (done < pages.Count) Say("The printer did not confirm every page; check what was printed.");
             else _shell.Toast(copies > 1 ? $"Printed {copies} labels." : "Label printed.");
