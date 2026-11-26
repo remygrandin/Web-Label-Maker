@@ -9,6 +9,17 @@
     {
         <span class="num-u">@Unit</span>
     }
+    @if (Spin)
+    {
+        <span class="num-spin">
+            <button type="button" tabindex="-1" title="More" disabled="@(Disabled || Value >= Max)" @onclick="() => Nudge(1)" @onclick:preventDefault="true">
+                <svg viewBox="0 0 8 5" aria-hidden="true"><path d="M1 4l3-3 3 3" /></svg>
+            </button>
+            <button type="button" tabindex="-1" title="Less" disabled="@(Disabled || Value <= Min)" @onclick="() => Nudge(-1)" @onclick:preventDefault="true">
+                <svg viewBox="0 0 8 5" aria-hidden="true"><path d="M1 1l3 3 3-3" /></svg>
+            </button>
+        </span>
+    }
 </label>
 
 @code {
@@ -22,8 +33,16 @@
     [Parameter] public double Step { get; set; } = 1;
     [Parameter] public int Decimals { get; set; } = 2;
     [Parameter] public bool Disabled { get; set; }
+    /// <summary>Show small up and down arrows after the number.</summary>
+    [Parameter] public bool Spin { get; set; }
 
     int _rev;
+
+    Task Nudge(int direction)
+    {
+        _rev++;
+        return Set(Value + direction * Step);
+    }
 
     string Format(double v) => Math.Round(v, Decimals).ToString("0." + new string('#', Decimals), CultureInfo.InvariantCulture);
 
