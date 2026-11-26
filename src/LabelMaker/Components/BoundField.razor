@@ -14,6 +14,18 @@
     {
         <span class="num-u">@Unit</span>
     }
+    @* Arrows only while the field holds a plain number: a click must never replace an expression. *@
+    @if (Spin && Expression is null)
+    {
+        <span class="num-spin">
+            <button type="button" tabindex="-1" title="More" disabled="@(Disabled || Value >= Max)" @onclick="() => Nudge(1)" @onclick:preventDefault="true">
+                <svg viewBox="0 0 8 5" aria-hidden="true"><path d="M1 4l3-3 3 3" /></svg>
+            </button>
+            <button type="button" tabindex="-1" title="Less" disabled="@(Disabled || Value <= Min)" @onclick="() => Nudge(-1)" @onclick:preventDefault="true">
+                <svg viewBox="0 0 8 5" aria-hidden="true"><path d="M1 1l3 3 3-3" /></svg>
+            </button>
+        </span>
+    }
 </label>
 
 @code {
@@ -30,7 +42,17 @@
     /// <summary>Custom setter (already wrapped in an undo step) for properties that need more than assignment.</summary>
     [Parameter] public Action<double>? Apply { get; set; }
 
+    /// <summary>Show small up and down arrows after the number (hidden while an expression drives the field).</summary>
+    [Parameter] public bool Spin { get; set; }
+
     int _rev;
+
+    void Nudge(int direction)
+    {
+        if (Expression is not null) return;
+        _rev++;
+        Set(Value + direction * Step, force: false);
+    }
 
     string? Expression => Editor.BindingOf(Node, Prop);
     double Value => Editor.GetNumber(Node, Prop);

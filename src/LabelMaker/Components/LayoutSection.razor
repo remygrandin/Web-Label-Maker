@@ -70,8 +70,8 @@
 
         case "ports":
             <div class="grid2" style="margin-top:6px">
-                <NumberField Label="PORTS" Value="l.Ports" Min="1" Max="96" Step="1" Decimals="0" ValueChanged="v => Ed.UpdateLayout(x => x.Ports = (int)v)" />
-                <NumberField Label="FROM" Value="l.First" Min="0" Max="9999" Step="1" Decimals="0" Title="Number of the first port" ValueChanged="v => Ed.UpdateLayout(x => x.First = (int)v)" />
+                <NumberField Label="PORTS" Value="l.Ports" Min="1" Max="96" Step="1" Decimals="0" Spin="true" ValueChanged="v => Ed.UpdateLayout(x => x.Ports = (int)v)" />
+                <NumberField Label="FROM" Value="l.First" Min="0" Max="9999" Step="1" Decimals="0" Spin="true" Title="Number of the first port" ValueChanged="v => Ed.UpdateLayout(x => x.First = (int)v)" />
             </div>
             <div class="row">
                 <span class="lbl">Spacing</span>

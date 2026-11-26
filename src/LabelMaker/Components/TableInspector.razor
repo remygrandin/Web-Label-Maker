@@ -3,8 +3,8 @@
 <div class="sect">
     <div class="sect-title">Table</div>
     <div class="grid2">
-        <NumberField Label="ROWS" Value="Node.Rows" Min="1" Max="TableNode.MaxRows" Step="1" Decimals="0" ValueChanged="v => Ed.ResizeTable(Node, (int)v, Node.Cols)" />
-        <NumberField Label="COLS" Value="Node.Cols" Min="1" Max="TableNode.MaxCols" Step="1" Decimals="0" ValueChanged="v => Ed.ResizeTable(Node, Node.Rows, (int)v)" />
+        <NumberField Label="ROWS" Value="Node.Rows" Min="1" Max="TableNode.MaxRows" Step="1" Decimals="0" Spin="true" ValueChanged="v => Ed.ResizeTable(Node, (int)v, Node.Cols)" />
+        <NumberField Label="COLS" Value="Node.Cols" Min="1" Max="TableNode.MaxCols" Step="1" Decimals="0" Spin="true" ValueChanged="v => Ed.ResizeTable(Node, Node.Rows, (int)v)" />
     </div>
     <div class="cells" style="grid-template-columns:repeat(@Node.Cols, minmax(0, 1fr))">
         @for (int i = 0; i < Node.Rows * Node.Cols; i++)

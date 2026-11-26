@@ -20,8 +20,8 @@
             <BoundField Node="Node" Prop="FontSize" Unit="pt" Min="2" Max="400" Step="0.5" Decimals="1" Disabled="Node.Mode == TextMode.Fit" Title="Font size" />
         </div>
         <div class="seg">
-            <button class="size-step" disabled="@(Node.Mode == TextMode.Fit)" title="Smaller text" @onclick="() => Resize(-1)">A−</button>
-            <button class="size-step big" disabled="@(Node.Mode == TextMode.Fit)" title="Bigger text" @onclick="() => Resize(1)">A+</button>
+            <button class="size-step" disabled="@SizeFixed" title="@(SizeBound ? "The size is set by an expression" : "Smaller text")" @onclick="() => Resize(-1)">A−</button>
+            <button class="size-step big" disabled="@SizeFixed" title="@(SizeBound ? "The size is set by an expression" : "Bigger text")" @onclick="() => Resize(1)">A+</button>
         </div>
     </div>
     <div class="row">
@@ -96,18 +96,19 @@
         ? $"{where}: the box grows from its {(where == "Middle" ? "middle" : where == "Top" ? "top edge" : "bottom edge")} as the text changes"
         : $"{where} of the box";
 
+    // A size driven by an expression is left alone: the buttons must not replace the expression.
+    bool SizeBound => Editor.BindingOf(Node, "FontSize") is not null;
+    bool SizeFixed => Node.Mode == TextMode.Fit || SizeBound;
+
     // One step bigger or smaller: finer steps for small text, coarser for large.
     void Resize(int direction)
     {
+        if (SizeFixed) return;
         double size = Node.FontSize;
         double from = direction < 0 ? size - 0.01 : size; // going down from 12 uses the small step
         double step = from < 12 ? 1 : from < 36 ? 2 : 4;
         double next = Math.Clamp(Math.Round((size + direction * step) * 2) / 2, 2, 400);
-        Ed.Mutate(() =>
-        {
-            Ed.SetBinding(Node, "FontSize", null); // the buttons set a plain size
-            Node.FontSize = next;
-        }, "font-step:" + Node.Id);
+        Ed.Mutate(() => Node.FontSize = next, "font-step:" + Node.Id);
     }
 
     void SetMode(TextMode mode) => Ed.Mutate(() => Node.Mode = mode);

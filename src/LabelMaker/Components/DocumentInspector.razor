@@ -110,9 +110,9 @@
 <div class="sect">
     <div class="sect-title">Counter</div>
     <div class="grid2">
-        <NumberField Label="NEXT" Value="doc.Counter.Value" Step="1" Decimals="0" Title="The value {seq} shows now and the first one printed"
+        <NumberField Label="NEXT" Value="doc.Counter.Value" Step="1" Decimals="0" Spin="true" Title="The value {seq} shows now and the first one printed"
                      ValueChanged="v => Ed.Mutate(() => doc.Counter.Value = v)" />
-        <NumberField Label="STEP" Value="doc.Counter.Step" Step="1" Decimals="0" Title="Added for every printed copy"
+        <NumberField Label="STEP" Value="doc.Counter.Step" Step="1" Decimals="0" Spin="true" Title="Added for every printed copy"
                      ValueChanged="v => Ed.Mutate(() => doc.Counter.Step = v)" />
     </div>
     <div class="hint">
