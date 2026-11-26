@@ -292,6 +292,19 @@ public sealed class PrinterService
         return await _js.InvokeAsync<string>("LM.printPreview", f, rects);
     }
 
+    /// <summary>After a page, wait briefly for the "waiting to receive" phase change before sending more.</summary>
+    async Task WaitReady()
+    {
+        var until = DateTime.UtcNow.AddSeconds(3);
+        while (DateTime.UtcNow < until)
+        {
+            var raw = await _js.InvokeAsync<byte[]?>("LM.serial.readStatus", 500);
+            if (raw is not { Length: 32 }) continue;
+            var s = new PrinterStatus { Raw = raw };
+            if (s.StatusType == 0x06 && s.Phase == 0) return;
+        }
+    }
+
     public async Task Print(bool ignoreTapeCheck = false)
     {
         if (Busy || Geometry is not { } g) return;
@@ -347,33 +360,55 @@ public sealed class PrinterService
             }
             finally { _ed.SeqOverride = null; _ed.Sync(); }
 
-            var job = Brother.BuildJob(Model, Media, g, Options, pages);
-            Say($"Sending {job.Length:N0} bytes ({pages.Count} page{(pages.Count > 1 ? "s" : "")}, {pages.Sum(p => p.Lines)} raster lines).");
-            sending = true;
-            await _js.InvokeVoidAsync("LM.serial.write", job);
-            sending = false;
-
-            // The printer announces phase changes, then "printing completed" per page.
+            // One page at a time, as Brother's reference describes: send a page, wait for the printer
+            // to say it has printed it and is ready to receive again, then send the next. Sending
+            // every page in one go overruns the printer's buffer after a few labels and leaves it
+            // stuck on a half-received page.
+            var jobs = Brother.BuildPageJobs(Model, Media, g, Options, pages);
+            Say($"Printing {pages.Count} page{(pages.Count > 1 ? "s" : "")} ({jobs.Sum(j => j.Length):N0} bytes, {pages.Sum(p => p.Lines)} raster lines).");
             int done = 0;
-            var deadline = DateTime.UtcNow.AddSeconds(30 + 20 * pages.Count);
-            while (done < pages.Count && DateTime.UtcNow < deadline)
+            bool silent = false;
+            for (int n = 0; n < jobs.Count; n++)
             {
-                var raw = await _js.InvokeAsync<byte[]?>("LM.serial.readStatus", 2000);
-                if (raw is not { Length: 32 }) continue;
-                var s = new PrinterStatus { Raw = raw };
-                switch (s.StatusType)
+                await _js.InvokeVoidAsync("LM.serial.flushInput");
+                sending = true;
+                await _js.InvokeVoidAsync("LM.serial.write", jobs[n]);
+                sending = false;
+
+                // generous: the page has to be printed, and a cut takes a moment
+                var deadline = DateTime.UtcNow.AddSeconds(25 + pages[n].Lines / 40.0);
+                bool printed = false;
+                while (!printed && DateTime.UtcNow < deadline)
                 {
-                    case 0x01: done++; Say(pages.Count > 1 ? $"Printed page {done} of {pages.Count}." : "Printing completed."); break;
-                    case 0x02:
-                        Status = s;
-                        Say($"Printer error: {(s.Errors.Count > 0 ? string.Join(", ", s.Errors) : "unspecified")}.");
-                        await _js.InvokeVoidAsync("LM.serial.write", Brother.Preamble(Model)[..^3]); // invalidate + initialise
-                        return;
-                    case 0x04: Say("The printer was switched off."); return;
-                    case 0x06 when s.Phase == 1: Say("Printing…"); break;
+                    var raw = await _js.InvokeAsync<byte[]?>("LM.serial.readStatus", 2000);
+                    if (raw is not { Length: 32 }) continue;
+                    var s = new PrinterStatus { Raw = raw };
+                    switch (s.StatusType)
+                    {
+                        case 0x01:
+                            printed = true; done++;
+                            Say(pages.Count > 1 ? $"Printed page {done} of {pages.Count}." : "Printing completed.");
+                            break;
+                        case 0x02:
+                            Status = s;
+                            Say($"Printer error: {(s.Errors.Count > 0 ? string.Join(", ", s.Errors) : "unspecified")}.");
+                            await _js.InvokeVoidAsync("LM.serial.write", Brother.Preamble(Model)[..^3]); // invalidate + initialise
+                            return;
+                        case 0x04: Say("The printer was switched off."); return;
+                    }
                 }
+                if (!printed)
+                {
+                    // No word from the printer. Carry on rather than leave the job without its final
+                    // feed and cut, but say so: from here the pages are sent without confirmation.
+                    if (!silent) Say("No completion message from the printer; continuing without confirmation.");
+                    silent = true;
+                    continue;
+                }
+                // it then announces that it is waiting for data again
+                if (n < jobs.Count - 1) await WaitReady();
             }
-            if (done < pages.Count) Say("No completion message from the printer; it may still have printed.");
+            if (done < pages.Count) Say("The printer did not confirm every page; check what was printed.");
             else _shell.Toast(copies > 1 ? $"Printed {copies} labels." : "Label printed.");
 
             // the next print run carries on where this one stopped

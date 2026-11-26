@@ -203,15 +203,23 @@ public static class Brother
     public sealed record PrintPage(byte[] Bits, int Width, int Height, int X0, int Lines, bool Cut, bool Half);
 
     /// <summary>Build the raster job for a sequence of pages.</summary>
-    public static byte[] BuildJob(PrinterModel model, MediaInfo media, TapeGeometry g, PrintOptions o, IReadOnlyList<PrintPage> pages)
+    public static byte[] BuildJob(PrinterModel model, MediaInfo media, TapeGeometry g, PrintOptions o, IReadOnlyList<PrintPage> pages) =>
+        BuildPageJobs(model, media, g, o, pages).SelectMany(p => p).ToArray();
+
+    /// <summary>
+    /// The raster job split per page, so each page can be sent once the printer has finished the one
+    /// before. Sent back to back they are the same bytes as one job.
+    /// </summary>
+    public static List<byte[]> BuildPageJobs(PrinterModel model, MediaInfo media, TapeGeometry g, PrintOptions o, IReadOnlyList<PrintPage> pages)
     {
         if (pages.Count == 0) throw new InvalidOperationException("Nothing to print.");
         int lineBytes = model.Pins / 8, feed = FeedDots(model, o), pins = g.PrintPins;
-        var job = new List<byte>(pages.Sum(p => p.Lines) * (lineBytes + 3) + 64 * pages.Count);
+        var jobs = new List<byte[]>(pages.Count);
         var line = new byte[lineBytes];
 
         for (int n = 0; n < pages.Count; n++)
         {
+            var job = new List<byte>(pages[n].Lines * (lineBytes + 3) + 64);
             var page = pages[n];
             bool last = n == pages.Count - 1;
             int lines = page.Lines, width = page.Width, height = page.Height;
@@ -258,8 +266,9 @@ public static class Brother
                 job[at + 2] = (byte)(len >> 8);
             }
             job.Add(last ? (byte)0x1A : (byte)0x0C);              // print (and feed on the last page)
+            jobs.Add(job.ToArray());
         }
-        return job.ToArray();
+        return jobs;
     }
 
     /// <summary>PackBits, as TIFF and the Brother raster mode define it.</summary>
